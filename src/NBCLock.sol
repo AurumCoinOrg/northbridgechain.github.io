@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.23;
 
 /// @notice Lock native NBC (anbc) by sending value() to this contract.
 ///         Users can lock for a chosen duration, then withdraw after unlock.
