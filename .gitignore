@@ -14,3 +14,8 @@ docs/
 .env
 
 .vercel/
+
+# --- web build artifacts ---
+web/node_modules/
+web/.next/
+web/.vercel/
