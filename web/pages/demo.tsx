@@ -267,6 +267,7 @@ export default function Demo() {
 
   return (
     <main style={{ maxWidth: 900, margin: "0 auto", padding: 16, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial" }}>
+<div style={{marginBottom:20}}><button onClick={addNorthbridgeNetwork}>Add Northbridge Network</button></div>
       <h1 style={{ margin: "0 0 8px 0" }}>NBCX Dashboard</h1>
       <div style={{ opacity: 0.8, fontSize: 14, marginBottom: 12 }}>
         <div><b>RPC:</b> {RPC_URL}</div>
@@ -359,3 +360,22 @@ export default function Demo() {
     </main>
   );
 }
+
+async function addNorthbridgeNetwork() {
+  if (!(window as any).ethereum) return alert("Install MetaMask");
+
+  await (window as any).ethereum.request({
+    method: "wallet_addEthereumChain",
+    params: [{
+      chainId: "0x2328", // 9000 in hex
+      chainName: "Northbridge Chain",
+      rpcUrls: ["http://89.167.28.12:8545"],
+      nativeCurrency: {
+        name: "NBC",
+        symbol: "NBC",
+        decimals: 18
+      }
+    }]
+  });
+}
+
