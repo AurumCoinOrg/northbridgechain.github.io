@@ -1,42 +1,37 @@
-import Link from "next/link";
-
 export default function Architecture() {
   return (
-    <main style={{ maxWidth: 920, margin: "40px auto", padding: "0 16px", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" }}>
-      <header style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-        <h1 style={{ margin: 0 }}>Architecture (v0.1)</h1>
-        <nav style={{ display: "flex", gap: 14, fontWeight: 600 }}>
-          <Link href="/">Home</Link>
-          <Link href="/whitepaper-v0-1">Whitepaper</Link>
-          <Link href="/roadmap">Roadmap</Link>
-          <Link href="/contracts">Contracts</Link>
-          <Link href="/demo">Demo</Link>
-        </nav>
-      </header>
+    <main style={{ maxWidth: 980, margin: "40px auto", padding: "0 16px", fontFamily: "system-ui" }}>
+      <h1 style={{ fontSize: 42, marginBottom: 6 }}>Architecture (v0.1)</h1>
+      <p style={{ opacity: 0.8, marginTop: 0 }}>High-level system design for Northbridge Chain + NBCX protocol.</p>
 
-      <section style={{ marginTop: 18, lineHeight: 1.8 }}>
-        <h2>Core pieces</h2>
-        <ul>
-          <li><b>Multisig (2-of-3)</b>: owns admin functions; reduces single-key risk.</li>
-          <li><b>NBCX Token (V2)</b>: ERC-20 token with controlled minting/ownership.</li>
-          <li><b>Staking (V2)</b>: users stake NBCX and earn emissions over time.</li>
-          <li><b>Lock (V2)</b>: time/penalty-based locking primitive (treasury receives penalty).</li>
-        </ul>
-
-        <h2>Flow</h2>
+      <section style={{ marginTop: 28 }}>
+        <h2>Layers</h2>
         <ol>
-          <li>Multisig funds staking contract with reward tokens.</li>
-          <li>User approves staking contract to spend NBCX.</li>
-          <li>User stakes NBCX → starts earning via rewardRate.</li>
-          <li>User claims rewards anytime (rewards transfer from staking balance).</li>
-          <li>User can optionally lock tokens; early exit pays penalty to treasury (multisig).</li>
+          <li><b>Northbridge Chain</b> — EVM network (Chain ID 9000), RPC: <code>http://89.167.28.12:8545</code></li>
+          <li><b>NBCX Token</b> — ERC-20 token contract</li>
+          <li><b>Staking</b> — stake NBCX, earn emissions over time</li>
+          <li><b>Distributor / Vault</b> — protocol treasury and controlled flows</li>
+          <li><b>Lock</b> — lock/penalty module (treasury-controlled)</li>
+          <li><b>Multisig Governance</b> — owner of core contracts; executes upgrades</li>
         </ol>
+      </section>
 
-        <h2>Safety model</h2>
+      <section style={{ marginTop: 28 }}>
+        <h2>Security Model</h2>
         <ul>
-          <li>Governance keys should be offline / hardware-backed.</li>
-          <li>Only multisig can change rewardRate / ownership-level actions.</li>
-          <li>Public demo wallet is for testing only.</li>
+          <li>Core contracts are <b>owned by the Multisig</b>.</li>
+          <li>All sensitive actions are executed via <b>2-of-3 approvals</b>.</li>
+          <li>Public UI is read-only + wallet actions (stake/unstake/claim) require user signature.</li>
+        </ul>
+      </section>
+
+      <section style={{ marginTop: 28 }}>
+        <h2>Links</h2>
+        <ul>
+          <li><a href="/contracts">Contracts</a></li>
+          <li><a href="/staking">Staking Dashboard</a></li>
+          <li><a href="/whitepaper-v0-1">Whitepaper v0.1</a></li>
+          <li><a href="/">Home</a></li>
         </ul>
       </section>
     </main>
