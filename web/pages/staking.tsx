@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ethers } from "ethers";
 
-const RPC_URL = "http://89.167.28.12:8545";
+const RPC_URL = (typeof window !== "undefined" ? window.location.origin : "https://northbridgechain.com") + "/api/rpc";
 
 // contracts
 const NBCX = "0xBa73385776f5A2D3F5D199bB2D0bA20704A7895a";
@@ -369,7 +369,7 @@ async function addNorthbridgeNetwork() {
     params: [{
       chainId: "0x2328", // 9000 in hex
       chainName: "Northbridge Chain",
-      rpcUrls: ["http://89.167.28.12:8545"],
+      rpcUrls: ["http://rpc.northbridgechain.com:8545"],
       nativeCurrency: {
         name: "NBC",
         symbol: "NBC",

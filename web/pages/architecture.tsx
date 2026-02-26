@@ -7,7 +7,7 @@ export default function Architecture() {
       <section style={{ marginTop: 28 }}>
         <h2>Layers</h2>
         <ol>
-          <li><b>Northbridge Chain</b> — EVM network (Chain ID 9000), RPC: <code>http://89.167.28.12:8545</code></li>
+          <li><b>Northbridge Chain</b> — EVM network (Chain ID 9000), RPC: <code>http://rpc.northbridgechain.com:8545</code></li>
           <li><b>NBCX Token</b> — ERC-20 token contract</li>
           <li><b>Staking</b> — stake NBCX, earn emissions over time</li>
           <li><b>Distributor / Vault</b> — protocol treasury and controlled flows</li>
