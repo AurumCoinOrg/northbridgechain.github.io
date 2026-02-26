@@ -19,3 +19,10 @@ docs/
 web/node_modules/
 web/.next/
 web/.vercel/
+
+# --- web build artifacts ---
+web/node_modules/
+web/.next/
+web/out/
+web/.vercel/
+web/package-lock.json
