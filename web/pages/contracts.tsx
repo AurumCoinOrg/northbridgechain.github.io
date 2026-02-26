@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-const RPC_URL = "http://89.167.28.12:8545";
+const RPC_URL = (typeof window !== "undefined" ? window.location.origin : "https://northbridgechain.com") + "/api/rpc";
 const CHAIN_ID = 9000;
 
 // Governance / Owners
@@ -31,7 +31,7 @@ export default function Contracts() {
           <Link href="/whitepaper-v0-1">Whitepaper</Link>
           <Link href="/roadmap">Roadmap</Link>
           <Link href="/architecture">Architecture</Link>
-          <Link href="/demo">Demo</Link>
+          <Link href="/staking">Demo</Link>
         </nav>
       </header>
 
