@@ -6,7 +6,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const upstream = "http://rpc.northbridgechain.com:8545";
+  const upstream = "https://rpc.northbridgechain.com";
 
   try {
     const r = await fetch(upstream, {
