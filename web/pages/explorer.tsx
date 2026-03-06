@@ -1,5 +1,6 @@
 import Head from "next/head";
 import { useEffect, useState } from "react";
+import ExplorerSearch from "../components/ExplorerSearch";
 
 const RPC = "/api/rpc";
 
@@ -16,6 +17,10 @@ async function rpc(method:string,params:any[]=[]){
 
 function shortHash(x:string){
   return x ? x.slice(0,10) + "…" + x.slice(-8) : "";
+}
+
+function shortAddr(x:string){
+  return x ? x.slice(0,6) + "…" + x.slice(-4) : "";
 }
 
 export default function Explorer(){
@@ -58,13 +63,10 @@ export default function Explorer(){
               hash:tx.hash,
               from:tx.from,
               to:tx.to,
-              block:num
+              block:num,
+              timestamp:parseInt(b.timestamp,16)
             });
             if(txArr.length >= 12) break;
-          }
-
-          if(txArr.length >= 12 && blockArr.length >= 10){
-            continue;
           }
         }
 
@@ -92,6 +94,7 @@ export default function Explorer(){
 
       <main style={{maxWidth:1100,margin:"40px auto",padding:20}}>
         <h1>Explorer</h1>
+        <ExplorerSearch />
 
         <div style={{marginTop:20,display:"flex",gap:20,flexWrap:"wrap"}}>
           <div>Latest Block: {latest.toLocaleString()}</div>
@@ -109,18 +112,24 @@ export default function Explorer(){
                   <th style={{textAlign:"left",padding:"10px 8px"}}>Block</th>
                   <th style={{textAlign:"left",padding:"10px 8px"}}>Hash</th>
                   <th style={{textAlign:"left",padding:"10px 8px"}}>Tx Count</th>
+                  <th style={{textAlign:"left",padding:"10px 8px"}}>Time</th>
                 </tr>
               </thead>
               <tbody>
                 {blocks.map((b,i)=>(
                   <tr key={i} style={{borderTop:"1px solid rgba(255,255,255,0.08)"}}>
                     <td style={{padding:"10px 8px"}}>
-                      <a href={`/block/${b.number}`}>{b.number.toLocaleString()}</a>
+                      <a href={`/block/${b.number}`} style={{textDecoration:"none",color:"inherit"}}>
+                        {b.number.toLocaleString()}
+                      </a>
                     </td>
                     <td style={{padding:"10px 8px",fontFamily:"monospace"}}>
-                      <a href={`/block/${b.number}`}>{shortHash(b.hash)}</a>
+                      <a href={`/block/${b.number}`} style={{textDecoration:"none",color:"inherit"}}>
+                        {shortHash(b.hash)}
+                      </a>
                     </td>
                     <td style={{padding:"10px 8px"}}>{b.txCount}</td>
+                    <td style={{padding:"10px 8px"}}>{new Date(b.timestamp*1000).toLocaleTimeString()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -136,20 +145,30 @@ export default function Explorer(){
                   <th style={{textAlign:"left",padding:"10px 8px"}}>Hash</th>
                   <th style={{textAlign:"left",padding:"10px 8px"}}>From</th>
                   <th style={{textAlign:"left",padding:"10px 8px"}}>To</th>
+                  <th style={{textAlign:"left",padding:"10px 8px"}}>Time</th>
                 </tr>
               </thead>
               <tbody>
                 {txs.map((tx,i)=>(
                   <tr key={i} style={{borderTop:"1px solid rgba(255,255,255,0.08)"}}>
                     <td style={{padding:"10px 8px",fontFamily:"monospace"}}>
-                      <a href={`/tx/${tx.hash}`}>{shortHash(tx.hash)}</a>
+                      <a href={`/tx/${tx.hash}`} style={{textDecoration:"none",color:"inherit"}}>
+                        {shortHash(tx.hash)}
+                      </a>
                     </td>
                     <td style={{padding:"10px 8px",fontFamily:"monospace"}}>
-                      <a href={`/address/${tx.from}`}>{shortHash(tx.from)}</a>
+                      <a href={`/address/${tx.from}`} style={{textDecoration:"none",color:"inherit"}}>
+                        {shortAddr(tx.from)}
+                      </a>
                     </td>
                     <td style={{padding:"10px 8px",fontFamily:"monospace"}}>
-                      {tx.to ? <a href={`/address/${tx.to}`}>{shortHash(tx.to)}</a> : "-"}
+                      {tx.to ? (
+                        <a href={`/address/${tx.to}`} style={{textDecoration:"none",color:"inherit"}}>
+                          {shortAddr(tx.to)}
+                        </a>
+                      ) : "-"}
                     </td>
+                    <td style={{padding:"10px 8px"}}>{new Date(tx.timestamp*1000).toLocaleTimeString()}</td>
                   </tr>
                 ))}
               </tbody>
