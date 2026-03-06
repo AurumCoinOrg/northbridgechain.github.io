@@ -26,6 +26,7 @@ function shortAddr(x:string){
 export default function Explorer(){
   const [blocks,setBlocks] = useState<any[]>([]);
   const [txs,setTxs] = useState<any[]>([]);
+  const [transfers,setTransfers] = useState<any[]>([]);
   const [latest,setLatest] = useState<number>(0);
   const [lastUpdated,setLastUpdated] = useState<string>("");
 
@@ -70,10 +71,13 @@ export default function Explorer(){
           }
         }
 
+        const tr = await fetch("/api/transfers").then(r=>r.json());
+
         if(dead) return;
         setLatest(latestBlock);
         setBlocks(blockArr);
         setTxs(txArr.slice(0,12));
+        setTransfers(Array.isArray(tr) ? tr : []);
         setLastUpdated(new Date().toLocaleTimeString());
       }catch{}
     }
@@ -105,7 +109,6 @@ export default function Explorer(){
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:40,marginTop:40}}>
           <div>
             <h2>Latest Blocks</h2>
-
             <table style={{width:"100%",marginTop:16,borderCollapse:"collapse"}}>
               <thead>
                 <tr>
@@ -138,7 +141,6 @@ export default function Explorer(){
 
           <div>
             <h2>Latest Transactions</h2>
-
             <table style={{width:"100%",marginTop:16,borderCollapse:"collapse"}}>
               <thead>
                 <tr>
@@ -175,6 +177,46 @@ export default function Explorer(){
             </table>
           </div>
         </div>
+
+        <h2 style={{marginTop:40}}>NBCX Token Transfers</h2>
+        <table style={{width:"100%",marginTop:16,borderCollapse:"collapse"}}>
+          <thead>
+            <tr>
+              <th style={{textAlign:"left",padding:"10px 8px"}}>Block</th>
+              <th style={{textAlign:"left",padding:"10px 8px"}}>Tx</th>
+              <th style={{textAlign:"left",padding:"10px 8px"}}>From</th>
+              <th style={{textAlign:"left",padding:"10px 8px"}}>To</th>
+              <th style={{textAlign:"left",padding:"10px 8px"}}>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {transfers.map((t,i)=>(
+              <tr key={i} style={{borderTop:"1px solid rgba(255,255,255,0.08)"}}>
+                <td style={{padding:"10px 8px"}}>
+                  <a href={`/block/${t.block}`} style={{textDecoration:"none",color:"inherit"}}>
+                    {Number(t.block).toLocaleString()}
+                  </a>
+                </td>
+                <td style={{padding:"10px 8px",fontFamily:"monospace"}}>
+                  <a href={`/tx/${t.tx}`} style={{textDecoration:"none",color:"inherit"}}>
+                    {shortHash(t.tx)}
+                  </a>
+                </td>
+                <td style={{padding:"10px 8px",fontFamily:"monospace"}}>
+                  <a href={`/address/${t.from}`} style={{textDecoration:"none",color:"inherit"}}>
+                    {shortAddr(t.from)}
+                  </a>
+                </td>
+                <td style={{padding:"10px 8px",fontFamily:"monospace"}}>
+                  <a href={`/address/${t.to}`} style={{textDecoration:"none",color:"inherit"}}>
+                    {shortAddr(t.to)}
+                  </a>
+                </td>
+                <td style={{padding:"10px 8px"}}>{t.amount}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </main>
     </>
   );
