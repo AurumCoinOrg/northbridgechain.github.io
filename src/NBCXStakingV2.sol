@@ -1,0 +1,163 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.23;
+
+import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+
+/// @notice Deterministic halving staking.
+/// - No owner.
+/// - No rewardRate setter.
+/// - Pool is pulled once in constructor.
+/// - Rate halves every ERA (4 years).
+contract NBCXStakingV2 {
+    using SafeERC20 for IERC20;
+
+    IERC20 public immutable TOKEN;
+    uint256 public immutable START_TIMESTAMP;
+
+    // 4 years = 1460 days (no leap handling; deterministic)
+    uint256 public constant ERA_SECONDS = 4 * 365 days;
+
+    // Total tokens distributed during Era 0 (first 4 years), in token wei (1e18).
+    // For POOL=35,000,000, set ERA0_TOTAL=17,500,000 * 1e18 so total across all eras sums to 35,000,000.
+    uint256 public immutable ERA0_TOTAL;
+
+    // Derived: tokens/sec in era 0
+    uint256 public immutable ERA0_RATE;
+
+    uint256 public totalStaked;
+    mapping(address => uint256) public staked;
+
+    uint256 public rewardPerTokenStored;
+    uint256 public lastUpdateTime;
+    mapping(address => uint256) public userRewardPerTokenPaid;
+    mapping(address => uint256) public rewards;
+
+    event Staked(address indexed user, uint256 amount);
+    event Unstaked(address indexed user, uint256 amount);
+    event Claimed(address indexed user, uint256 amount);
+
+        bool public FUNDED;
+
+constructor(
+        address token_,
+        uint256 startTimestamp_,
+        uint256 era0Total_) {
+        require(token_ != address(0), "bad token");
+require(era0Total_ > 0, "bad era0");
+TOKEN = IERC20(token_);
+        START_TIMESTAMP = startTimestamp_;
+        ERA0_TOTAL = era0Total_;
+        ERA0_RATE = era0Total_ / ERA_SECONDS;
+
+        lastUpdateTime = startTimestamp_;
+
+        // Pull the pool once (pre-funded model)
+    }
+
+    // Fund staking rewards exactly once (prefunded pool). No admin. No withdrawals.
+    function fund(uint256 amount) external {
+        require(!FUNDED, "already funded");
+        require(amount > 0, "bad amount");
+        FUNDED = true;
+        TOKEN.safeTransferFrom(msg.sender, address(this), amount);
+    }
+
+
+    function rewardRate() public view returns (uint256) {
+        if (block.timestamp < START_TIMESTAMP) return 0;
+        uint256 era = (block.timestamp - START_TIMESTAMP) / ERA_SECONDS;
+        uint256 r = ERA0_RATE;
+        // divide by 2^era (stop at 0 naturally)
+        r = r >> era;
+        return r;
+    }
+
+    function _min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
+    }
+
+    // reward tokens accrued between [t0, t1), accounting for halving boundaries
+    function _rewardBetween(uint256 t0, uint256 t1) internal view returns (uint256) {
+        if (t1 <= t0) return 0;
+        if (t1 <= START_TIMESTAMP) return 0;
+
+        if (t0 < START_TIMESTAMP) t0 = START_TIMESTAMP;
+
+        uint256 acc = 0;
+        while (t0 < t1) {
+            uint256 era = (t0 - START_TIMESTAMP) / ERA_SECONDS;
+            uint256 eraEnd = START_TIMESTAMP + (era + 1) * ERA_SECONDS;
+            uint256 end = _min(t1, eraEnd);
+
+            uint256 r = ERA0_RATE >> era;
+            if (r == 0) break;
+
+            acc += (end - t0) * r;
+            t0 = end;
+        }
+        return acc;
+    }
+
+    function lastTimeRewardApplicable() public view returns (uint256) {
+        // No hard end timestamp; pool exhaustion will naturally stop payouts when balance is insufficient.
+        return block.timestamp;
+    }
+
+    function rewardPerToken() public view returns (uint256) {
+        if (totalStaked == 0) return rewardPerTokenStored;
+
+        uint256 t1 = lastTimeRewardApplicable();
+        uint256 accrued = _rewardBetween(lastUpdateTime, t1);
+
+        // convert to per-token units (1e18)
+        return rewardPerTokenStored + (accrued * 1e18) / totalStaked;
+    }
+
+    function earned(address account) public view returns (uint256) {
+        uint256 per = rewardPerToken();
+        uint256 paid = userRewardPerTokenPaid[account];
+        return rewards[account] + (staked[account] * (per - paid)) / 1e18;
+    }
+
+    modifier updateReward(address account) {
+        rewardPerTokenStored = rewardPerToken();
+        lastUpdateTime = lastTimeRewardApplicable();
+        if (account != address(0)) {
+            rewards[account] = earned(account);
+            userRewardPerTokenPaid[account] = rewardPerTokenStored;
+        }
+        _;
+    }
+
+    function stake(uint256 amount) external updateReward(msg.sender) {
+        require(amount > 0, "amount=0");
+        totalStaked += amount;
+        staked[msg.sender] += amount;
+        TOKEN.safeTransferFrom(msg.sender, address(this), amount);
+        emit Staked(msg.sender, amount);
+    }
+
+    function unstake(uint256 amount) external updateReward(msg.sender) {
+        require(amount > 0, "amount=0");
+        require(staked[msg.sender] >= amount, "too much");
+        totalStaked -= amount;
+        staked[msg.sender] -= amount;
+        TOKEN.safeTransfer(msg.sender, amount);
+        emit Unstaked(msg.sender, amount);
+    }
+
+    function claim() external updateReward(msg.sender) {
+        uint256 r = rewards[msg.sender];
+        require(r > 0, "no rewards");
+        rewards[msg.sender] = 0;
+
+        // Pool-exhaustion safety: pay up to contract balance
+        uint256 bal = TOKEN.balanceOf(address(this));
+        uint256 pay = r <= bal ? r : bal;
+        require(pay > 0, "empty");
+
+        TOKEN.safeTransfer(msg.sender, pay);
+        emit Claimed(msg.sender, pay);
+    }
+}

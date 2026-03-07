@@ -1,0 +1,81 @@
+import Link from "next/link";
+import Head from "next/head";
+import { ReactNode } from "react";
+
+export default function Layout({ children, title }: { children: ReactNode; title?: string }) {
+  return (
+    
+<style jsx global>{`
+/* NB_PILLNAV_MOBILE_FIX */
+@media (max-width: 900px) {
+  .nb-pillnav {
+    position: static !important;
+    right: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 10px !important;
+
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch;
+
+    padding: 10px 12px !important;
+    margin: 10px 0 14px !important;
+
+    background: rgba(0,0,0,0.18);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 999px;
+    backdrop-filter: blur(10px);
+  }
+
+  .nb-pillnav .pill {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+  }
+}
+`}</style>
+<>
+      <Head>
+        <title>{title ? `${title} — Northbridge Chain` : "Northbridge Chain"}</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="description" content="Northbridge Chain — staking, contracts, architecture and roadmap." />
+      </Head>
+
+      <div className="nav">
+        <div className="navInner">
+          <Link href="/" className="brand">
+            <img src="/logo-northbridge.svg" alt="Northbridge Chain" />
+            <span>Northbridge Chain</span>
+          </Link>
+
+          <div className="links">
+      <div className="nb-pillnav">
+            <Link className="pill" href="/staking">Staking</Link>
+            <Link className="pill" href="/wallet">Wallet</Link>
+            <Link className="pill" href="/contracts">Contracts</Link>
+            <Link className="pill" href="/transparency">Transparency</Link>
+            <Link className="pill" href="/tokenomics">Tokenomics</Link>
+            <Link className="pill" href="/architecture">Architecture</Link>
+            <Link className="pill" href="/roadmap">Roadmap</Link>
+            <Link className="pill" href="/governance">Governance</Link>
+            <Link className="pill" href="/whitepaper-v0-1">Whitepaper</Link>
+      </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="container">{children}</div>
+
+      <div className="container" style={{ paddingTop: 0 }}>
+        <div className="footer">
+          <div>© {new Date().getFullYear()} Northbridge Chain</div>
+          <div>Multisig governance • On-chain emissions • Staking live</div>
+        </div>
+      </div>
+    </>
+  );
+}

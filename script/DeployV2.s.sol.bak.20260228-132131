@@ -1,0 +1,86 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.23;
+
+import "forge-std/Script.sol";
+import "openzeppelin-contracts/contracts/governance/TimelockController.sol";
+
+import "../src/NBCXV2.sol";
+import "../src/TreasuryVault.sol";
+import "../src/NBCXStakingV2.sol";
+
+contract DeployV2 is Script {
+    function run() external {
+        // ====== CONFIG (Option A) ======
+        string memory NAME = "Northbridge Token";
+        string memory SYMBOL = "NBCX";
+
+        uint256 WAD = 1e18;
+        uint256 MAX = 100_000_000 * WAD;
+
+        uint256 TREASURY = 30_000_000 * WAD;
+        uint256 ECOSYSTEM = 20_000_000 * WAD;
+        uint256 TEAM = 10_000_000 * WAD;
+        uint256 LIQUIDITY = 5_000_000 * WAD;
+        uint256 STAKING_POOL = 35_000_000 * WAD;
+
+        // deterministic-halving pool parameter:
+        // you already discussed era0=17,500,000 gives ~35M total over infinite eras (close enough).
+        uint256 ERA0_TOTAL = 17_500_000 * WAD;
+
+        // timelock delay (72 hours)
+        uint256 TIMELOCK_DELAY = 72 hours;
+
+        // ====== WALLETS (SET THESE) ======
+        // governance multisig (proposer/executor for timelock)
+        address GOVERNANCE = vm.envAddress("GOVERNANCE");
+        // where liquidity tokens go (your LP wallet)
+        address LIQ_WALLET = vm.envAddress("LIQ_WALLET");
+
+        // ====== DEPLOY ======
+        uint256 pk = vm.envUint("DEPLOYER_PK");
+        address deployer = vm.addr(pk);
+
+        vm.startBroadcast(pk);
+
+        // timelock: proposer/executor = GOVERNANCE, admin = GOVERNANCE
+        address;
+        proposers[0] = GOVERNANCE;
+
+        address;
+        executors[0] = GOVERNANCE;
+
+        TimelockController timelock = new TimelockController(TIMELOCK_DELAY, proposers, executors, GOVERNANCE);
+
+        TreasuryVault vault = new TreasuryVault(address(timelock));
+
+        // token mints once to deployer so we can distribute immediately
+        NBCXV2 token = new NBCXV2(NAME, SYMBOL, MAX, deployer);
+
+        // staking v2 (no minting; rewards come from prefunded pool)
+        NBCXStakingV2 staking = new NBCXStakingV2(address(token), ERA0_TOTAL);
+
+        // ====== DISTRIBUTE ======
+        // staking pool
+        token.transfer(address(staking), STAKING_POOL);
+
+        // vault holds treasury + ecosystem + team until you later create vesting streams
+        token.transfer(address(vault), TREASURY + ECOSYSTEM + TEAM);
+
+        // liquidity wallet
+        token.transfer(LIQ_WALLET, LIQUIDITY);
+
+        // sanity: ensure total distributed == MAX (remainder stays with deployer if any)
+        // If you want EXACT = MAX, you can send remainder to vault too.
+        uint256 remainder = token.balanceOf(deployer);
+        if (remainder > 0) {
+            token.transfer(address(vault), remainder);
+        }
+
+        vm.stopBroadcast();
+
+        console2.log("TIMELOCK:", address(timelock));
+        console2.log("VAULT:", address(vault));
+        console2.log("NBCX_V2:", address(token));
+        console2.log("STAKING_V2:", address(staking));
+    }
+}

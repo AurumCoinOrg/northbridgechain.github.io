@@ -9,36 +9,31 @@ contract NBCXStakingTest is Test {
     NBCToken token;
     NBCXStaking staking;
 
-    address owner = address(0xA11CE);
+    address stakingPool = address(0x1111);
+    address treasury   = address(0x2222);
+    address ecosystem  = address(0x3333);
+    address team       = address(0x4444);
+    address liquidity  = address(0x5555);
+
     address alice = address(0xB0B);
 
     function setUp() public {
-        vm.prank(owner);
-        token = new NBCToken(owner);
+        // Deploy token (fixed allocations)
+        token = new NBCToken(stakingPool, treasury, ecosystem, team, liquidity);
 
-        vm.prank(owner);
-        staking = new NBCXStaking(owner, address(token));
+        // Deploy staking (deterministic halving)
+        staking = new NBCXStaking(address(token));
 
-        vm.prank(owner);
-        token.mint(owner, 1_000_000e18);
+        // Fund staking contract with some rewards (from the stakingPool allocation)
+        vm.prank(stakingPool);
+        token.transfer(address(staking), 200_000e18);
 
-        // fund staking rewards by sending tokens to staking contract
-        vm.prank(owner);
-        token.approve(address(staking), type(uint256).max);
-
-        vm.prank(owner);
-        staking.fund(100_000e18);
-
-        // give alice tokens to stake
-        vm.prank(owner);
-        token.mint(alice, 10_000e18);
+        // Give Alice stake tokens (from liquidity allocation)
+        vm.prank(liquidity);
+        token.transfer(alice, 10_000e18);
 
         vm.prank(alice);
         token.approve(address(staking), type(uint256).max);
-
-        // set reward rate: 1 token/sec (1e18 wei per sec)
-        vm.prank(owner);
-        staking.setRewardRate(1e18);
     }
 
     function test_StakeEarnClaim() public {
@@ -66,7 +61,6 @@ contract NBCXStakingTest is Test {
         vm.prank(alice);
         staking.unstake(50e18);
 
-        // should have 150 still staked
         assertEq(staking.staked(alice), 150e18);
     }
 }

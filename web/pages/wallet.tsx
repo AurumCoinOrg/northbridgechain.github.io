@@ -1,8 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ethers } from "ethers";
-import { RPC_URL, CHAIN_ID, CHAIN_ID_HEX, CHAIN_NAME, NBCX, STAKING, LOCK } from "../lib/config";
 
-const ERC20_ABI = [
+const RPC_URL =
+  (typeof window !== "undefined" ? window.location.origin : "") + "/api/rpc";
+
+// Contracts (prod)
+const NBCX = "0x09fbf5662DbF33B0ea3D56a3Fdc8cD1936c3c196";
+const STAKING = "0x688192F914b058bF7a5533e5Fb1da8f9e45ACBa2";
+
+const NBCX_ABI = [
   "function name() view returns (string)",
   "function symbol() view returns (string)",
   "function decimals() view returns (uint8)",
@@ -10,223 +16,475 @@ const ERC20_ABI = [
 ];
 
 const STAKING_ABI = [
-  "function token() view returns (address)",
-  "function totalStaked() view returns (uint256)",
   "function staked(address) view returns (uint256)",
   "function earned(address) view returns (uint256)",
+  "function totalStaked() view returns (uint256)",
   "function rewardRate() view returns (uint256)",
 ];
 
-async function addNorthbridgeNetwork() {
-  const eth = (globalThis as any).ethereum;
-  if (!eth) return alert("Install MetaMask");
-
-  await eth.request({
-    method: "wallet_addEthereumChain",
-    params: [{
-      chainId: CHAIN_ID_HEX,
-      chainName: CHAIN_NAME,
-      rpcUrls: [RPC_URL],
-      nativeCurrency: { name: "NBC", symbol: "NBC", decimals: 18 }
-    }]
-  });
+function short(addr: string) {
+  return addr.slice(0, 6) + "…" + addr.slice(-4);
 }
 
-function fmt18(x: bigint) {
-  return ethers.formatUnits(x, 18);
+// NB_WALLET_URL_HELPERS
+function nbGetAddrFromQuery(): string {
+  if (typeof window === "undefined") return "";
+  const q = new URLSearchParams(window.location.search);
+  return (q.get("addr") || "").trim();
+}
+
+function nbSetAddrInQuery(addr: string) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (addr) url.searchParams.set("addr", addr);
+  else url.searchParams.delete("addr");
+  window.history.replaceState(null, "", url.toString());
+}
+
+
+function cardStyle(): React.CSSProperties {
+  return {
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.06)",
+    borderRadius: 14,
+    padding: 16,
+    boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+    backdropFilter: "blur(10px)",
+  };
+}
+
+function pillStyle(): React.CSSProperties {
+  return {
+    display: "inline-flex",
+    gap: 10,
+    alignItems: "center",
+    padding: "10px 12px",
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(0,0,0,0.18)",
+    color: "rgba(255,255,255,0.92)",
+    textDecoration: "none",
+  };
 }
 
 export default function WalletPage() {
+
+    // NB_PROVIDER
   const provider = useMemo(() => new ethers.JsonRpcProvider(RPC_URL), []);
-  const [account, setAccount] = useState<string>("");
-  const [wrongChain, setWrongChain] = useState<boolean>(false);
+// NB_FAUCET_ELIGIBILITY_V2
+  const NB_NBCX_TOKEN = "0x09fbf5662DbF33B0ea3D56a3Fdc8cD1936c3c196";
+  const [nbFaucetAlreadyFunded, setNbFaucetAlreadyFunded] = useState(false);
 
-  const [queryAddr, setQueryAddr] = useState<string>("");
-  const [viewAddr, setViewAddr] = useState<string>("");
+  async function nbRefreshFaucetEligibility() {
+    try {
+      const eth = (window as any).ethereum;
+      if (!eth) return;
 
-  const [nbcxBal, setNbcxBal] = useState<string>("-");
-  const [staked, setStaked] = useState<string>("-");
-  const [earned, setEarned] = useState<string>("-");
-  const [totalStaked, setTotalStaked] = useState<string>("-");
-  const [rewardRate, setRewardRate] = useState<string>("-");
+      const mmProvider = new ethers.BrowserProvider(eth);
 
-  async function connect() {
-    const eth = (globalThis as any).ethereum;
-    if (!eth) return alert("Install MetaMask");
+      // If not connected, getSigner() will throw.
+      const signer = await mmProvider.getSigner();
+      const addr = await signer.getAddress();
 
-    const accts = await eth.request({ method: "eth_requestAccounts" });
-    const a = (accts?.[0] || "").toLowerCase();
-    setAccount(a);
+      const erc20 = new ethers.Contract(
+        NB_NBCX_TOKEN,
+        ["function balanceOf(address)(uint256)"],
+        mmProvider
+      );
 
-    const cidHex = await eth.request({ method: "eth_chainId" });
-    setWrongChain(parseInt(cidHex, 16) !== CHAIN_ID);
-  }
-
-  async function refresh(addr: string) {
-    if (!addr) return;
-    const a = ethers.getAddress(addr);
-
-    const nbcx = new ethers.Contract(NBCX, ERC20_ABI, provider);
-    const staking = new ethers.Contract(STAKING, STAKING_ABI, provider);
-
-    const [bal, st, er, ts, rr] = await Promise.all([
-      nbcx.balanceOf(a),
-      staking.staked(a),
-      staking.earned(a),
-      staking.totalStaked(),
-      staking.rewardRate(),
-    ]);
-
-    setNbcxBal(fmt18(bal));
-    setStaked(fmt18(st));
-    setEarned(fmt18(er));
-    setTotalStaked(fmt18(ts));
-    setRewardRate(fmt18(rr)); // tokens/sec (18 decimals)
+      const bal = await erc20.balanceOf(addr);
+      const threshold = ethers.parseUnits("1000", 18);
+      setNbFaucetAlreadyFunded(bal >= threshold);
+    } catch {
+      // ignore
+    }
   }
 
   useEffect(() => {
-    // default to connected wallet if present, otherwise placeholder
-    const init = async () => {
-      const eth = (globalThis as any).ethereum;
-      if (eth) {
-        try {
-          const accts = await eth.request({ method: "eth_accounts" });
-          const a = (accts?.[0] || "").toLowerCase();
-          if (a) setAccount(a);
+    nbRefreshFaucetEligibility();
 
-          const cidHex = await eth.request({ method: "eth_chainId" });
-          setWrongChain(parseInt(cidHex, 16) !== CHAIN_ID);
+    const eth = (window as any).ethereum;
+    if (!eth) return;
 
-          if (a && !viewAddr) {
-            setViewAddr(a);
-            setQueryAddr(a);
-          }
-        } catch {}
-      }
+    const onAccounts = () => nbRefreshFaucetEligibility();
+    const onChain = () => nbRefreshFaucetEligibility();
+
+    eth.on?.("accountsChanged", onAccounts);
+    eth.on?.("chainChanged", onChain);
+
+    return () => {
+      eth.removeListener?.("accountsChanged", onAccounts);
+      eth.removeListener?.("chainChanged", onChain);
     };
-    init();
-  }, [viewAddr]);
+  }, []);
 
-  useEffect(() => {
-    if (viewAddr) refresh(viewAddr);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewAddr]);
+  // NB_FAUCET_UI
+  const [faucetMsg, setFaucetMsg] = useState<string>("");
+  const [faucetBusy, setFaucetBusy] = useState<boolean>(false);
 
-  return (
-    <main style={{ minHeight: "100vh", padding: 28, background: "radial-gradient(1200px 600px at 10% 10%, rgba(255,215,0,0.12), transparent), radial-gradient(900px 500px at 90% 10%, rgba(0,200,255,0.10), transparent), #070A0F", color: "#EAF0FF", fontFamily: "ui-sans-serif, system-ui" }}>
-      <div style={{ maxWidth: 1000, margin: "0 auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-          <div>
-            <div style={{ letterSpacing: 2, opacity: 0.8, fontSize: 12 }}>NORTHBRIDGE</div>
-            <h1 style={{ margin: "6px 0 0", fontSize: 36 }}>Wallet</h1>
-            <div style={{ opacity: 0.8, marginTop: 6 }}>View any address + staking stats.</div>
-          </div>
+  async function requestFaucet() {
+    try {
+      setFaucetMsg("");
+      setFaucetBusy(true);
 
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <button onClick={addNorthbridgeNetwork} style={btn()}>Add Network</button>
-            <button onClick={connect} style={btn(true)}>
-              {account ? `Connected: ${account.slice(0, 6)}…${account.slice(-4)}` : "Connect Wallet"}
-            </button>
-          </div>
-        </div>
+      const eth = (window as any).ethereum;
+      if (!eth) {
+        setFaucetMsg("MetaMask not found. Install MetaMask on this device.");
+        return;
+      }
 
-        {wrongChain && (
-          <div style={{ marginTop: 14, padding: 12, borderRadius: 12, background: "rgba(255,80,80,0.12)", border: "1px solid rgba(255,80,80,0.35)" }}>
-            Wrong chain in MetaMask. Click <b>Add Network</b> then switch to <b>{CHAIN_NAME}</b>.
-          </div>
-        )}
+// NB_AUTO_ADD_TOKEN
+async function nbAddNBCXToken() {
+  const eth = (window as any).ethereum;
+  if (!eth) return;
 
-        <div style={{ marginTop: 18, padding: 16, borderRadius: 16, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}>
-          <div style={{ fontSize: 13, opacity: 0.85, marginBottom: 10 }}>Enter address to view:</div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <input
-              value={queryAddr}
-              onChange={(e) => setQueryAddr(e.target.value)}
-              placeholder="0x..."
-              style={input()}
-            />
-            <button
-              onClick={() => {
-                try {
-                  const a = ethers.getAddress(queryAddr.trim());
-                  setViewAddr(a);
-                } catch {
-                  alert("Invalid address");
-                }
-              }}
-              style={btn(true)}
-            >
-              View
-            </button>
-            {account && (
-              <button onClick={() => { setQueryAddr(account); setViewAddr(account); }} style={btn()}>
-                Use my address
-              </button>
-            )}
-          </div>
-          <div style={{ marginTop: 10, fontSize: 12, opacity: 0.75 }}>
-            Contracts: NBCX {short(NBCX)} • STAKING {short(STAKING)} • LOCK {short(LOCK)}
-          </div>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, marginTop: 18 }}>
-          <Card title="NBCX Balance" value={nbcxBal} suffix="NBCX" />
-          <Card title="Staked" value={staked} suffix="NBCX" />
-          <Card title="Earned" value={earned} suffix="NBCX" />
-          <Card title="Total Staked" value={totalStaked} suffix="NBCX" />
-          <Card title="Reward Rate" value={rewardRate} suffix="NBCX/sec" />
-        </div>
-
-        <div style={{ marginTop: 18, opacity: 0.85, fontSize: 13 }}>
-          <a href="/staking" style={link()}>Go to Staking Dashboard →</a>
-          <span style={{ margin: "0 10px", opacity: 0.5 }}>|</span>
-          <a href="/explorer" style={link()}>Explorer Lite →</a>
-          <span style={{ margin: "0 10px", opacity: 0.5 }}>|</span>
-          <a href="/" style={link()}>Back to Home →</a>
-        </div>
-      </div>
-    </main>
-  );
+  try {
+    await eth.request({
+      method: "wallet_watchAsset",
+      params: {
+        type: "ERC20",
+        options: {
+          address: "0x09fbf5662DbF33B0ea3D56a3Fdc8cD1936c3c196",
+          symbol: "NBCX",
+          decimals: 18
+        }
+      }
+    });
+  } catch {}
 }
 
-function short(a: string) { return `${a.slice(0, 6)}…${a.slice(-4)}`; }
 
-function Card({ title, value, suffix }: { title: string; value: string; suffix: string }) {
+      const accounts: string[] = await eth.request({ method: "eth_requestAccounts" });
+      const address = accounts?.[0];
+      if (!address) {
+        setFaucetMsg("No wallet connected.");
+        return;
+      }
+
+      setFaucetMsg("Requesting 1,000 test NBCX…");
+
+      const resp = await fetch("/api/faucet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address }),
+      });
+
+      const j = await resp.json().catch(() => ({}));
+      if (!resp.ok || !j.ok) {
+        setFaucetMsg(j.error || "Faucet failed.");
+        return;
+      }
+
+      setFaucetMsg(`Sent 1,000 test NBCX → ${address}. Tx: ${j.txHash}`);
+    } catch (e: any) {
+      setFaucetMsg(e?.message || "Faucet failed.");
+    } finally {
+      setFaucetBusy(false);
+    }
+  }
+
+  const [input, setInput] = useState<string>("");
+  const [addr, setAddr] = useState<string>("");
+  const [busy, setBusy] = useState<boolean>(false);
+  const [err, setErr] = useState<string>("");
+  const [autoRefresh, setAutoRefresh] = useState<boolean>(false);
+
+  const [tokenName, setTokenName] = useState<string>("-");
+  const [tokenSymbol, setTokenSymbol] = useState<string>("-");
+  const [decimals, setDecimals] = useState<number>(18);
+
+  const [bal, setBal] = useState<bigint>(0n);
+  const [staked, setStaked] = useState<bigint>(0n);
+  const [earned, setEarned] = useState<bigint>(0n);
+const token = useMemo(() => new ethers.Contract(NBCX, NBCX_ABI, provider), [provider]);
+  const staking = useMemo(() => new ethers.Contract(STAKING, STAKING_ABI, provider), [provider]);
+
+  // auto-load from ?addr=... (read-only deep link)
+  useEffect(() => {
+    const q = nbGetAddrFromQuery();
+    if (!q) return;
+    try {
+      const checksum = ethers.getAddress(q);
+      setInput(checksum);
+      setAddr(checksum);
+      nbRefreshFaucetEligibility();
+      load(checksum);
+    } catch {
+      setErr("Invalid address in URL");
+    }
+  }, []);
+
+  // auto-refresh (10s) when enabled and an address is loaded
+  useEffect(() => {
+    if (!autoRefresh) return;
+    if (!addr) return;
+    const t = setInterval(() => {
+      load(addr);
+    }, 10000);
+    return () => clearInterval(t);
+  }, [autoRefresh, addr]);
+
+  // prefill with connected wallet if available (optional)
+  useEffect(() => {
+    (async () => {
+      try {
+        const eth = (globalThis as any).ethereum;
+        if (!eth) return;
+
+        const accounts: string[] = await eth.request({ method: "eth_accounts" });
+        if (accounts && accounts[0]) {
+          setInput(accounts[0]);
+          setAddr(accounts[0]);
+          nbRefreshFaucetEligibility();
+        }
+      } catch {
+        // ignore
+      }
+    })();
+  }, []);
+
+  // load token metadata once
+  useEffect(() => {
+    (async () => {
+      try {
+        const [n, s, d] = await Promise.all([token.name(), token.symbol(), token.decimals()]);
+        setTokenName(n);
+        setTokenSymbol(s);
+        setDecimals(Number(d));
+      } catch {
+        // ignore (RPC down etc.)
+      }
+    })();
+  }, [token]);
+
+  async function load(a: string) {
+    setErr("");
+    setBusy(true);
+    try {
+      const checksum = ethers.getAddress(a);
+      const [b, st, er] = await Promise.all([
+        token.balanceOf(checksum),
+        staking.staked(checksum),
+        staking.earned(checksum),
+      ]);
+      setBal(BigInt(b));
+      setStaked(BigInt(st));
+      setEarned(BigInt(er));
+    } catch (e: any) {
+      setErr(e?.shortMessage || e?.message || String(e));
+      setBal(0n);
+      setStaked(0n);
+      setEarned(0n);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function onLookup() {
+    const trimmed = input.trim();
+    if (!trimmed) return;
+    try {
+      const checksum = ethers.getAddress(trimmed);
+      setAddr(checksum);
+      load(checksum);
+    } catch {
+      setErr("Invalid address");
+    }
+  }
+
+  function fmt(x: bigint) {
+    try {
+      return Number(ethers.formatUnits(x, decimals)).toLocaleString(undefined, {
+        maximumFractionDigits: 8,
+      });
+    } catch {
+      return "0";
+    }
+  }
+
   return (
-    <div style={{ padding: 16, borderRadius: 16, background: "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04))", border: "1px solid rgba(255,255,255,0.10)" }}>
-      <div style={{ fontSize: 12, opacity: 0.75, letterSpacing: 1 }}>{title.toUpperCase()}</div>
-      <div style={{ fontSize: 22, marginTop: 8, fontWeight: 700 }}>
-        {value} <span style={{ fontSize: 12, opacity: 0.75, fontWeight: 600 }}>{suffix}</span>
+    <div
+      style={{
+        minHeight: "100vh",
+        color: "rgba(255,255,255,0.92)",
+        background:
+          "radial-gradient(1200px 600px at 20% 10%, rgba(255,215,0,0.18), transparent 60%)," +
+          "radial-gradient(900px 500px at 80% 20%, rgba(120,160,255,0.18), transparent 60%)," +
+          "linear-gradient(180deg, #070A12, #05060B 55%, #04040A)",
+      }}
+    >
+      {/* NB_FAUCET_CARD */}
+      <div style={{
+        border: "1px solid rgba(255,255,255,0.12)",
+        background: "rgba(255,255,255,0.06)",
+        borderRadius: 16,
+        padding: 14,
+        marginBottom: 14
+      }}>
+        <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 6 }}>Get Test NBCX</div>
+        <div style={{ opacity: 0.8, fontSize: 13, lineHeight: 1.35, marginBottom: 10 }}>
+          Step 1: Make sure you&apos;re on the Northbridge testnet in MetaMask.<br />
+          Step 2: Tap the button below.<br />
+          Step 3: Wait a few seconds — you&apos;ll receive <b>1,000 test NBCX</b> (rate-limited).
+        </div>
+        <button
+          onClick={requestFaucet}
+          disabled={faucetBusy || nbFaucetAlreadyFunded}
+          style={{
+            width: "100%",
+            borderRadius: 14,
+            padding: "12px 14px",
+            border: "1px solid rgba(255,255,255,0.14)",
+            background: faucetBusy ? "rgba(255,255,255,0.10)" : "rgba(255,215,0,0.18)",
+            color: "rgba(255,255,255,0.92)",
+            fontWeight: 800,
+            cursor: faucetBusy ? "not-allowed" : "pointer"
+          }}
+        >
+          {nbFaucetAlreadyFunded ? "Already funded" : (faucetBusy ? "Sending…" : "Get 1,000 Test NBCX")}
+        </button>
+        {faucetMsg && (
+          <div style={{ marginTop: 10, fontSize: 12, opacity: 0.85, overflowWrap: "anywhere" }}>
+            {faucetMsg}
+          </div>
+        )}
+      </div>
+
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 18px 60px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <a href="/" style={pillStyle()}>
+            ← Home
+          </a>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <a href="/staking" style={pillStyle()}>Staking Dashboard</a>
+            <a href="/contracts" style={pillStyle()}>Contracts</a>
+            <a href="/explorer" style={pillStyle()}>Explorer Lite</a>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 22 }}>
+          <div style={{ opacity: 0.85, fontSize: 12, letterSpacing: 1.2, textTransform: "uppercase" }}>
+            Northbridge Chain • Wallet (Read-Only)
+          </div>
+
+          <h1 style={{ margin: "10px 0 10px", fontSize: 40, lineHeight: 1.1 }}>
+            Check any address
+          </h1>
+
+          <div style={{ opacity: 0.82, maxWidth: 820 }}>
+            Paste an address to view <b>NBCX balance</b>, <b>staked</b>, and <b>earned</b> rewards. No connection required.
+          </div>
+        </div>
+
+        <div style={{ marginTop: 18, ...cardStyle() }}>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") onLookup(); }}
+              placeholder="0x… address"
+              style={{
+                flex: "1 1 520px",
+                padding: "12px 12px",
+                borderRadius: 12,
+                border: "1px solid rgba(255,255,255,0.14)",
+                background: "rgba(0,0,0,0.25)",
+                color: "rgba(255,255,255,0.92)",
+                outline: "none",
+              }}
+            />
+            <button
+              onClick={onLookup}
+              disabled={busy}
+              style={{
+                padding: "12px 14px",
+                borderRadius: 12,
+                border: "1px solid rgba(255,255,255,0.16)",
+                background: busy ? "rgba(255,255,255,0.10)" : "rgba(255,215,0,0.18)",
+                color: "rgba(255,255,255,0.92)",
+                cursor: busy ? "not-allowed" : "pointer",
+              }}
+            >
+              {busy ? "Loading…" : "Lookup"}
+            </button>
+
+          <div style={{ display: "flex", gap: 14, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
+            <label style={{ display: "flex", gap: 8, alignItems: "center", userSelect: "none", opacity: 0.92 }}>
+              <input
+                type="checkbox"
+                checked={autoRefresh}
+                onChange={(e) => setAutoRefresh(e.target.checked)}
+              />
+              Auto-refresh (10s)
+            </label>
+
+            <a href={addr ? (`/staking?addr=`) : "/staking"} style={{ textDecoration: "none", color: "rgba(255,255,255,0.92)" }}>Open Staking →</a>
+            <a href={addr ? (`/explorer?addr=`) : "/explorer"} style={{ textDecoration: "none", color: "rgba(255,255,255,0.92)" }}>Open Explorer →</a>
+          </div>
+
+        </div>
+
+          <div style={{ marginTop: 12, display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
+            <div style={cardStyle()}>
+              <div style={{ opacity: 0.7, fontSize: 12 }}>RPC</div>
+              <div style={{ marginTop: 6, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>
+                {RPC_URL}
+              </div>
+            </div>
+
+            <div style={cardStyle()}>
+              <div style={{ opacity: 0.7, fontSize: 12 }}>Token</div>
+              <div style={{ marginTop: 6, fontSize: 16 }}>
+                {tokenName} <span style={{ opacity: 0.8 }}>({tokenSymbol})</span>
+              </div>
+              <div style={{ marginTop: 6, opacity: 0.75, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>
+                NBCX: {short(NBCX)}
+              </div>
+            </div>
+
+            <div style={cardStyle()}>
+              <div style={{ opacity: 0.7, fontSize: 12 }}>Staking</div>
+              <div style={{ marginTop: 6, opacity: 0.75, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>
+                {short(STAKING)}
+              </div>
+            </div>
+          </div>
+
+          {err ? (
+            <div style={{ marginTop: 12, color: "rgba(255,120,120,0.95)" }}>
+              Error: {err}
+            </div>
+          ) : null}
+        </div>
+
+        <div style={{ marginTop: 14, display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
+          <div style={cardStyle()}>
+            <div style={{ opacity: 0.7, fontSize: 12 }}>Address</div>
+            <div style={{ marginTop: 6, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>
+              {addr ? addr : "—"}
+            </div>
+          </div>
+
+          <div style={cardStyle()}>
+            <div style={{ opacity: 0.7, fontSize: 12 }}>NBCX Balance</div>
+            <div style={{ marginTop: 8, fontSize: 26 }}>{fmt(bal)}</div>
+          </div>
+
+          <div style={cardStyle()}>
+            <div style={{ opacity: 0.7, fontSize: 12 }}>Staked</div>
+            <div style={{ marginTop: 8, fontSize: 26 }}>{fmt(staked)}</div>
+          </div>
+
+          <div style={cardStyle()}>
+            <div style={{ opacity: 0.7, fontSize: 12 }}>Earned</div>
+            <div style={{ marginTop: 8, fontSize: 26 }}>{fmt(earned)}</div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 18, opacity: 0.7, fontSize: 12 }}>
+          Read-only view. Transactions (stake/claim) happen on the Staking Dashboard.
+        </div>
       </div>
     </div>
   );
-}
-
-function btn(primary = false) {
-  return {
-    padding: "10px 14px",
-    borderRadius: 12,
-    border: primary ? "1px solid rgba(255,215,0,0.35)" : "1px solid rgba(255,255,255,0.18)",
-    background: primary ? "linear-gradient(180deg, rgba(255,215,0,0.22), rgba(255,215,0,0.08))" : "rgba(255,255,255,0.06)",
-    color: "#EAF0FF",
-    cursor: "pointer",
-    fontWeight: 700,
-  } as const;
-}
-
-function input() {
-  return {
-    flex: 1,
-    minWidth: 260,
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.18)",
-    background: "rgba(0,0,0,0.35)",
-    color: "#EAF0FF",
-    outline: "none",
-  } as const;
-}
-
-function link() {
-  return { color: "#EAF0FF", textDecoration: "underline", textUnderlineOffset: 4 } as const;
 }

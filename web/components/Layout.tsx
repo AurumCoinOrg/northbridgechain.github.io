@@ -18,6 +18,7 @@ export default function Layout({ children }: Props) {
   { href: "/contract-map", label: "Contract Map" },
   { href: "/network", label: "Network Status" },
   { href: "/supply", label: "Supply" },
+      { href: "/richlist", label: "Rich List" },
   { href: "/network-health", label: "Network Health" },
   { href: "/explorer", label: "Explorer" },
       { href: "/transparency", label: "Transparency" },

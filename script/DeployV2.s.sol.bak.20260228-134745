@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.23;
+
+import "forge-std/Script.sol";
+import "forge-std/console2.sol";
+import "openzeppelin-contracts/contracts/governance/TimelockController.sol";
+
+import "../src/NBCXV2.sol";
+import "../src/TreasuryVault.sol";
+import "../src/NBCXStakingV2.sol";
+
+contract DeployV2 is Script {
+    uint256 internal constant WAD = 1e18;
+
+    uint256 internal constant MAX_SUPPLY   = 100_000_000 * WAD;
+    uint256 internal constant TREASURY     = 30_000_000 * WAD;
+    uint256 internal constant ECOSYSTEM    = 20_000_000 * WAD;
+    uint256 internal constant TEAM         = 10_000_000 * WAD;
+    uint256 internal constant LIQUIDITY    = 5_000_000 * WAD;
+    uint256 internal constant STAKING_POOL = 35_000_000 * WAD;
+
+    uint256 internal constant ERA0_TOTAL = 17_500_000 * WAD;
+    uint256 internal constant TIMELOCK_DELAY = 72 hours;
+
+    function run() external {
+        address GOVERNANCE = vm.envAddress("GOVERNANCE");
+        address LIQ_WALLET = vm.envAddress("LIQ_WALLET");
+
+        uint256 pk = vm.envUint("DEPLOYER_PK");
+        address deployer = vm.addr(pk);
+
+        vm.startBroadcast(pk);
+
+        address;
+        proposers[0] = GOVERNANCE;
+
+        address;
+        executors[0] = GOVERNANCE;
+
+        TimelockController timelock =
+            new TimelockController(TIMELOCK_DELAY, proposers, executors, GOVERNANCE);
+
+        TreasuryVault vault = new TreasuryVault(address(timelock));
+
+        NBCXV2 token = new NBCXV2("Northbridge Token","NBCX",MAX_SUPPLY,deployer);
+        NBCXStakingV2 staking = new NBCXStakingV2(address(token), ERA0_TOTAL);
+
+        token.transfer(address(staking), STAKING_POOL);
+        token.transfer(address(vault), TREASURY + ECOSYSTEM + TEAM);
+        token.transfer(LIQ_WALLET, LIQUIDITY);
+
+        uint256 remainder = token.balanceOf(deployer);
+        if (remainder > 0) {
+            token.transfer(address(vault), remainder);
+        }
+
+        vm.stopBroadcast();
+
+        console2.log("GOVERNANCE:", GOVERNANCE);
+        console2.log("LIQ_WALLET:", LIQ_WALLET);
+        console2.log("TIMELOCK:", address(timelock));
+        console2.log("VAULT:", address(vault));
+        console2.log("NBCX_V2:", address(token));
+        console2.log("STAKING_V2:", address(staking));
+    }
+}

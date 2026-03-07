@@ -1,0 +1,141 @@
+import Link from "next/link";
+import { useState } from "react";
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <style jsx global>{`
+        html, body {
+          margin: 0;
+          overflow-x: hidden;
+        }
+
+        .nb-header {
+          position: sticky;
+          top: 0;
+          z-index: 1000;
+          backdrop-filter: blur(12px);
+          background: rgba(0,0,0,0.35);
+          border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .nb-header-inner {
+          max-width: 1100px;
+          margin: 0 auto;
+          padding: 14px 16px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .nb-brand {
+          font-weight: 700;
+          color: white;
+          text-decoration: none;
+        }
+
+        .nb-nav {
+          display: flex;
+          gap: 14px;
+        }
+
+        .pill {
+          padding: 8px 14px;
+          border-radius: 999px;
+          border: 1px solid rgba(255,255,255,0.25);
+          text-decoration: none;
+          color: white;
+          font-weight: 600;
+          white-space: nowrap;
+        }
+
+        .nb-menu-btn {
+          display: none;
+          font-size: 22px;
+          background: none;
+          border: none;
+          color: white;
+        }
+
+        .nb-dropdown {
+          display: none;
+        }
+
+        @media (max-width: 900px) {
+          .nb-nav {
+            display: none;
+          }
+
+          .nb-menu-btn {
+            display: block;
+          }
+
+          .nb-dropdown {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            padding: 20px;
+            background: rgba(0,0,0,0.95);
+          }
+
+          .nb-dropdown a {
+            display: block;
+            font-size: 18px;
+            font-weight: 600;
+            color: white;
+            text-decoration: none;
+            padding: 6px 0;
+          }
+        }
+
+        main {
+          max-width: 1100px;
+          margin: 0 auto;
+          padding: 20px 16px 60px;
+        }
+      `}</style>
+
+      <header className="nb-header">
+        <div className="nb-header-inner">
+          <Link href="/" className="nb-brand">
+            Northbridge Chain
+          </Link>
+
+          <nav className="nb-nav">
+            <Link className="pill" href="/staking">Staking</Link>
+            <Link className="pill" href="/wallet">Wallet</Link>
+            <Link className="pill" href="/contracts">Contracts</Link>
+            <Link className="pill" href="/transparency">Transparency</Link>
+            <Link className="pill" href="/tokenomics">Tokenomics</Link>
+            <Link className="pill" href="/architecture">Architecture</Link>
+            <Link className="pill" href="/roadmap">Roadmap</Link>
+            <Link className="pill" href="/governance">Governance</Link>
+            <Link className="pill" href="/whitepaper-v0-1">Whitepaper</Link>
+          </nav>
+
+          <button className="nb-menu-btn" onClick={() => setOpen(!open)}>
+            ☰
+          </button>
+        </div>
+
+        {open && (
+          <div className="nb-dropdown">
+            <Link href="/staking" onClick={() => setOpen(false)}>Staking</Link>
+            <Link href="/wallet" onClick={() => setOpen(false)}>Wallet</Link>
+            <Link href="/contracts" onClick={() => setOpen(false)}>Contracts</Link>
+            <Link href="/transparency" onClick={() => setOpen(false)}>Transparency</Link>
+            <Link href="/tokenomics" onClick={() => setOpen(false)}>Tokenomics</Link>
+            <Link href="/architecture" onClick={() => setOpen(false)}>Architecture</Link>
+            <Link href="/roadmap" onClick={() => setOpen(false)}>Roadmap</Link>
+            <Link href="/governance" onClick={() => setOpen(false)}>Governance</Link>
+            <Link href="/whitepaper-v0-1" onClick={() => setOpen(false)}>Whitepaper</Link>
+          </div>
+        )}
+      </header>
+
+      <main>{children}</main>
+    </>
+  );
+}
