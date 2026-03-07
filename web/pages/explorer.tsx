@@ -93,91 +93,165 @@ export default function Explorer() {
     <>
       <Head>
         <title>Explorer</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
-      <main style={{ maxWidth: 1100, margin: "40px auto", padding: 20 }}>
+      <main className="page">
         <h1>Explorer</h1>
         <ExplorerSearch />
 
-        <div style={{ marginTop: 8, display: "flex", gap: 20, flexWrap: "wrap" }}>
+        <div className="stats">
           <div>Latest Block: {latest.toLocaleString()}</div>
           <div>Auto-refresh: 3s</div>
           <div>Last Updated: {lastUpdated}</div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40, marginTop: 40 }}>
-          <div>
+        <div className="sections">
+          <section>
             <h2>Latest Blocks</h2>
-            <table style={{ width: "100%", marginTop: 16, borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  <th style={{ textAlign: "left", padding: "10px 8px" }}>Block</th>
-                  <th style={{ textAlign: "left", padding: "10px 8px" }}>Hash</th>
-                  <th style={{ textAlign: "left", padding: "10px 8px" }}>Tx Count</th>
-                  <th style={{ textAlign: "left", padding: "10px 8px" }}>Gas Used</th>
-                  <th style={{ textAlign: "left", padding: "10px 8px" }}>Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {blocks.map((b, i) => (
-                  <tr key={i} style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-                    <td style={{ padding: "10px 8px" }}>
-                      <a href={`/block/${b.number}`} style={{ textDecoration: "none", color: "inherit" }}>
-                        {b.number.toLocaleString()}
-                      </a>
-                    </td>
-                    <td style={{ padding: "10px 8px", fontFamily: "monospace" }}>
-                      <a href={`/block/${b.number}`} style={{ textDecoration: "none", color: "inherit" }}>
-                        {shortHash(b.hash)}
-                      </a>
-                    </td>
-                    <td style={{ padding: "10px 8px" }}>{b.txCount}</td>
-                    <td style={{ padding: "10px 8px" }}>{b.gasUsed.toLocaleString()}</td>
-                    <td style={{ padding: "10px 8px" }}>{new Date(b.timestamp * 1000).toLocaleTimeString()}</td>
+            <div className="scroller">
+              <table className="gridTable">
+                <thead>
+                  <tr>
+                    <th>Block</th>
+                    <th>Hash</th>
+                    <th>Tx Count</th>
+                    <th>Gas Used</th>
+                    <th>Time</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {blocks.map((b, i) => (
+                    <tr key={i}>
+                      <td>
+                        <a href={`/block/${b.number}`}>{b.number.toLocaleString()}</a>
+                      </td>
+                      <td className="mono">
+                        <a href={`/block/${b.number}`}>{shortHash(b.hash)}</a>
+                      </td>
+                      <td>{b.txCount}</td>
+                      <td>{b.gasUsed.toLocaleString()}</td>
+                      <td>{new Date(b.timestamp * 1000).toLocaleTimeString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
 
-          <div>
+          <section>
             <h2>Latest Transactions</h2>
-            <table style={{ width: "100%", marginTop: 16, borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  <th style={{ textAlign: "left", padding: "10px 8px" }}>Hash</th>
-                  <th style={{ textAlign: "left", padding: "10px 8px" }}>From</th>
-                  <th style={{ textAlign: "left", padding: "10px 8px" }}>To</th>
-                  <th style={{ textAlign: "left", padding: "10px 8px" }}>Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {txs.map((tx, i) => (
-                  <tr key={i} style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-                    <td style={{ padding: "10px 8px", fontFamily: "monospace" }}>
-                      <a href={`/tx/${tx.hash}`} style={{ textDecoration: "none", color: "inherit" }}>
-                        {shortHash(tx.hash)}
-                      </a>
-                    </td>
-                    <td style={{ padding: "10px 8px", fontFamily: "monospace" }}>
-                      <a href={`/address/${tx.from}`} style={{ textDecoration: "none", color: "inherit" }}>
-                        {shortAddr(tx.from)}
-                      </a>
-                    </td>
-                    <td style={{ padding: "10px 8px", fontFamily: "monospace" }}>
-                      {tx.to ? (
-                        <a href={`/address/${tx.to}`} style={{ textDecoration: "none", color: "inherit" }}>
-                          {shortAddr(tx.to)}
-                        </a>
-                      ) : "-"}
-                    </td>
-                    <td style={{ padding: "10px 8px" }}>{new Date(tx.timestamp * 1000).toLocaleTimeString()}</td>
+            <div className="scroller">
+              <table className="gridTable">
+                <thead>
+                  <tr>
+                    <th>Hash</th>
+                    <th>From</th>
+                    <th>To</th>
+                    <th>Time</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {txs.map((tx, i) => (
+                    <tr key={i}>
+                      <td className="mono">
+                        <a href={`/tx/${tx.hash}`}>{shortHash(tx.hash)}</a>
+                      </td>
+                      <td className="mono">
+                        <a href={`/address/${tx.from}`}>{shortAddr(tx.from)}</a>
+                      </td>
+                      <td className="mono">
+                        {tx.to ? <a href={`/address/${tx.to}`}>{shortAddr(tx.to)}</a> : "-"}
+                      </td>
+                      <td>{new Date(tx.timestamp * 1000).toLocaleTimeString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
         </div>
+
+        <style jsx>{`
+          .page {
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 20px;
+          }
+          .stats {
+            margin-top: 12px;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+          }
+          .sections {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-top: 40px;
+          }
+          .scroller {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+          }
+          .gridTable {
+            width: 100%;
+            min-width: 640px;
+            margin-top: 16px;
+            border-collapse: collapse;
+            table-layout: auto;
+          }
+          .gridTable th,
+          .gridTable td {
+            text-align: left;
+            padding: 10px 8px;
+            white-space: nowrap;
+            vertical-align: top;
+          }
+          .gridTable tr {
+            border-top: 1px solid rgba(255,255,255,0.08);
+          }
+          .mono {
+            font-family: monospace;
+          }
+          .gridTable a {
+            text-decoration: none;
+            color: inherit;
+          }
+
+          @media (max-width: 900px) {
+            .sections {
+              grid-template-columns: 1fr;
+              gap: 28px;
+            }
+          }
+
+          @media (max-width: 640px) {
+            .page {
+              padding: 16px;
+              margin: 24px auto;
+            }
+            h1 {
+              font-size: 48px;
+              line-height: 1.05;
+              margin-bottom: 8px;
+            }
+            h2 {
+              font-size: 26px;
+              line-height: 1.15;
+              margin: 0;
+            }
+            .stats {
+              gap: 12px;
+              flex-direction: column;
+              align-items: flex-start;
+            }
+            .gridTable {
+              min-width: 560px;
+            }
+          }
+        `}</style>
       </main>
     </>
   );
