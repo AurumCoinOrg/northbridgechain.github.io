@@ -4,8 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import CopyButton from "../../components/CopyButton";
 
 const RPC = "/api/rpc";
-const ERC20_TRANSFER_TOPIC =
-  "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
 async function rpc(method: string, params: any[] = []) {
   const r = await fetch(RPC, {
@@ -53,20 +51,6 @@ function normalizeReceiptStatus(status: unknown): "success" | "failed" | "pendin
 
 function shortHash(x: string) {
   return x ? x.slice(0, 10) + "…" + x.slice(-8) : "";
-}
-
-function topicToAddress(topic?: string | null) {
-  if (!topic || topic.length < 42) return "";
-  return "0x" + topic.slice(-40);
-}
-
-function formatTokenAmount(rawHex?: string | null) {
-  if (!rawHex) return "0";
-  try {
-    return BigInt(rawHex).toString();
-  } catch {
-    return "0";
-  }
 }
 
 export default function TxPage() {
@@ -163,22 +147,6 @@ export default function TxPage() {
   };
 
   const logs = Array.isArray(receipt?.logs) ? receipt.logs : [];
-
-  const transferLogs = useMemo(() => {
-    return logs
-      .filter((log: any) => {
-        const firstTopic = Array.isArray(log?.topics) && log.topics.length ? String(log.topics[0]).toLowerCase() : "";
-        return firstTopic === ERC20_TRANSFER_TOPIC;
-      })
-      .map((log: any, i: number) => ({
-        key: `${log?.transactionHash || "tx"}-${log?.logIndex || i}`,
-        token: log?.address || "",
-        from: topicToAddress(log?.topics?.[1]),
-        to: topicToAddress(log?.topics?.[2]),
-        amount: formatTokenAmount(log?.data),
-        logIndex: log?.logIndex ? hexToInt(log.logIndex) : i,
-      }));
-  }, [logs]);
 
   return (
     <>
@@ -314,75 +282,6 @@ export default function TxPage() {
                 </div>
               </div>
             </div>
-
-            <div style={{ marginTop: 34, display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-              <h2 style={{ margin: 0 }}>Transfer Events</h2>
-              <div style={{ fontSize: 13, opacity: 0.72 }}>{transferLogs.length.toLocaleString()} decoded</div>
-            </div>
-
-            {transferLogs.length ? (
-              <div
-                style={{
-                  marginTop: 16,
-                  overflowX: "auto",
-                  WebkitOverflowScrolling: "touch",
-                  borderRadius: 16,
-                  border: "1px solid rgba(255,255,255,0.10)",
-                  background: "rgba(255,255,255,0.03)",
-                }}
-              >
-                <table style={{ width: "100%", minWidth: 820, borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr>
-                      <th style={{ textAlign: "left", padding: "12px 10px" }}>Log</th>
-                      <th style={{ textAlign: "left", padding: "12px 10px" }}>Token</th>
-                      <th style={{ textAlign: "left", padding: "12px 10px" }}>From</th>
-                      <th style={{ textAlign: "left", padding: "12px 10px" }}>To</th>
-                      <th style={{ textAlign: "left", padding: "12px 10px" }}>Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {transferLogs.map((item) => (
-                      <tr key={item.key} style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-                        <td style={{ padding: "12px 10px" }}>{item.logIndex}</td>
-                        <td style={{ padding: "12px 10px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}>
-                          <div style={{ display: "flex", gap: 8, alignItems: "flex-start", flexWrap: "wrap" }}>
-                            <a href={`/address/${item.token}`}>{shortHash(item.token)}</a>
-                            <CopyButton value={item.token} />
-                          </div>
-                        </td>
-                        <td style={{ padding: "12px 10px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}>
-                          <div style={{ display: "flex", gap: 8, alignItems: "flex-start", flexWrap: "wrap" }}>
-                            <a href={`/address/${item.from}`}>{shortHash(item.from)}</a>
-                            <CopyButton value={item.from} />
-                          </div>
-                        </td>
-                        <td style={{ padding: "12px 10px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}>
-                          <div style={{ display: "flex", gap: 8, alignItems: "flex-start", flexWrap: "wrap" }}>
-                            <a href={`/address/${item.to}`}>{shortHash(item.to)}</a>
-                            <CopyButton value={item.to} />
-                          </div>
-                        </td>
-                        <td style={{ padding: "12px 10px", fontWeight: 700 }}>{item.amount}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div
-                style={{
-                  marginTop: 16,
-                  padding: 18,
-                  borderRadius: 16,
-                  border: "1px solid rgba(255,255,255,0.10)",
-                  background: "rgba(255,255,255,0.03)",
-                  opacity: 0.8,
-                }}
-              >
-                No ERC-20 Transfer events decoded for this transaction.
-              </div>
-            )}
 
             <div style={{ marginTop: 34, display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
               <h2 style={{ margin: 0 }}>Receipt Logs</h2>
