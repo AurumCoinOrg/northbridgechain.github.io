@@ -238,6 +238,10 @@ export default function Explorer() {
           }
           .gridTable tr {
             border-top: 1px solid rgba(255,255,255,0.08);
+            transition: background 0.16s ease;
+          }
+          .gridTable tbody tr:hover {
+            background: rgba(255,255,255,0.04);
           }
           .mono {
             font-family: monospace;
