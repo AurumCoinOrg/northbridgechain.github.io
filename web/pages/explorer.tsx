@@ -23,6 +23,27 @@ function shortAddr(x: string) {
   return x ? x.slice(0, 6) + "…" + x.slice(-4) : "";
 }
 
+function formatClock(ts: number) {
+  return new Date(ts * 1000).toLocaleTimeString();
+}
+
+function timeAgo(ts: number) {
+  const now = Math.floor(Date.now() / 1000);
+  const diff = Math.max(0, now - ts);
+
+  if (diff < 5) return "just now";
+  if (diff < 60) return `${diff}s ago`;
+
+  const mins = Math.floor(diff / 60);
+  if (mins < 60) return `${mins}m ago`;
+
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
 export default function Explorer() {
   const [blocks, setBlocks] = useState<any[]>([]);
   const [txs, setTxs] = useState<any[]>([]);
@@ -127,11 +148,14 @@ export default function Explorer() {
                         <a href={`/block/${b.number}`}>{b.number.toLocaleString()}</a>
                       </td>
                       <td className="mono">
-                        <a href={`/block/${b.number}`}>{shortHash(b.hash)}</a>
+                        <a href={`/block/${b.number}`} title={b.hash}>{shortHash(b.hash)}</a>
                       </td>
                       <td>{b.txCount}</td>
                       <td>{b.gasUsed.toLocaleString()}</td>
-                      <td>{new Date(b.timestamp * 1000).toLocaleTimeString()}</td>
+                      <td title={formatClock(b.timestamp)}>
+                        <div className="timePrimary">{timeAgo(b.timestamp)}</div>
+                        <div className="timeSecondary">{formatClock(b.timestamp)}</div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -155,15 +179,18 @@ export default function Explorer() {
                   {txs.map((tx, i) => (
                     <tr key={i}>
                       <td className="mono">
-                        <a href={`/tx/${tx.hash}`}>{shortHash(tx.hash)}</a>
+                        <a href={`/tx/${tx.hash}`} title={tx.hash}>{shortHash(tx.hash)}</a>
                       </td>
                       <td className="mono">
-                        <a href={`/address/${tx.from}`}>{shortAddr(tx.from)}</a>
+                        <a href={`/address/${tx.from}`} title={tx.from}>{shortAddr(tx.from)}</a>
                       </td>
                       <td className="mono">
-                        {tx.to ? <a href={`/address/${tx.to}`}>{shortAddr(tx.to)}</a> : "-"}
+                        {tx.to ? <a href={`/address/${tx.to}`} title={tx.to}>{shortAddr(tx.to)}</a> : "-"}
                       </td>
-                      <td>{new Date(tx.timestamp * 1000).toLocaleTimeString()}</td>
+                      <td title={formatClock(tx.timestamp)}>
+                        <div className="timePrimary">{timeAgo(tx.timestamp)}</div>
+                        <div className="timeSecondary">{formatClock(tx.timestamp)}</div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -218,6 +245,16 @@ export default function Explorer() {
           .gridTable a {
             text-decoration: none;
             color: inherit;
+          }
+          .timePrimary {
+            font-weight: 600;
+            line-height: 1.15;
+          }
+          .timeSecondary {
+            margin-top: 2px;
+            font-size: 12px;
+            opacity: 0.68;
+            line-height: 1.15;
           }
 
           @media (max-width: 900px) {
