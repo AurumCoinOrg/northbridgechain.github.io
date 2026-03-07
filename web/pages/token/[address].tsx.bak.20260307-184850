@@ -295,12 +295,6 @@ export default function TokenPage() {
 
         <div style={{ marginTop: 34, display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <h2 style={{ margin: 0 }}>Latest Transfers</h2>
-<div style={{marginTop:12}}>
-<a href={`/token/${tokenAddress}/holders`} style={{textDecoration:"none",fontWeight:700}}>
-View Holders →
-</a>
-</div>
-
           <div style={{ fontSize: 13, opacity: 0.72 }}>{transfers.length.toLocaleString()} rows</div>
         </div>
 
