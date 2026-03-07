@@ -64,7 +64,14 @@ export default function Contracts() {
       <h2 style={{ marginTop: 22 }}>Core (V2)</h2>
       <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid rgba(0,0,0,0.12)", borderRadius: 12, overflow: "hidden" as any }}>
         <tbody>
-          <Row k="NBCX Token (V2)" v={NBCX_V2} />
+          <tr>
+      <td style={{ padding: "10px 12px", fontWeight: 700, width: 220, verticalAlign: "top" }}>NBCX Token (V2)</td>
+      <td style={{ padding: "10px 12px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
+        <a href={`/token/${NBCX_V2}`} style={{ textDecoration: "none" }}>
+          {NBCX_V2}
+        </a>
+      </td>
+    </tr>
           <Row k="Staking (V2)" v={STAKING_V2} />
           <Row k="Vault (V2)" v={VAULT_V2} />
         </tbody>
