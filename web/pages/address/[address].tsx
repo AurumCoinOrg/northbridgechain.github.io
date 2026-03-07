@@ -1,10 +1,42 @@
 import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Head from "next/head";
 import CopyButton from "../../components/CopyButton";
 
 function short(x: string) {
   return x ? x.slice(0, 10) + "…" + x.slice(-8) : "";
+}
+
+function shortAddr(x: string) {
+  return x ? x.slice(0, 6) + "…" + x.slice(-4) : "";
+}
+
+function timeAgo(ts?: number | null) {
+  if (!ts) return "-";
+  const now = Math.floor(Date.now() / 1000);
+  const diff = Math.max(0, now - ts);
+
+  if (diff < 5) return "just now";
+  if (diff < 60) return diff + "s ago";
+
+  const m = Math.floor(diff / 60);
+  if (m < 60) return m + "m ago";
+
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + "h ago";
+
+  const d = Math.floor(h / 24);
+  return d + "d ago";
+}
+
+function parseMaybeNumber(value: any): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const n = Number(value);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
 }
 
 export default function AddressPage() {
@@ -28,6 +60,118 @@ export default function AddressPage() {
       .catch(() => {});
   }, [address]);
 
+  const normalizedAddress = useMemo(() => String(address || "").toLowerCase(), [address]);
+
+  const normalizedTransfers = useMemo(() => {
+    return (Array.isArray(transfers) ? transfers : []).map((t: any, i: number) => {
+      const from = String(t?.from || "");
+      const to = String(t?.to || "");
+      const lowerFrom = from.toLowerCase();
+      const lowerTo = to.toLowerCase();
+
+      const direction =
+        lowerTo === normalizedAddress ? "Incoming" :
+        lowerFrom === normalizedAddress ? "Outgoing" :
+        "Other";
+
+      const blockNumber =
+        parseMaybeNumber(t?.blockNumber) ??
+        parseMaybeNumber(t?.block) ??
+        parseMaybeNumber(t?.height);
+
+      const timestamp =
+        parseMaybeNumber(t?.timestamp) ??
+        parseMaybeNumber(t?.time) ??
+        parseMaybeNumber(t?.ts);
+
+      return {
+        key: t?.tx || "row-" + i,
+        tx: String(t?.tx || ""),
+        from,
+        to,
+        amount: t?.amount ?? "0",
+        blockNumber,
+        timestamp,
+        direction,
+      };
+    });
+  }, [transfers, normalizedAddress]);
+
+  const pageStyle: React.CSSProperties = {
+    maxWidth: 1100,
+    margin: "40px auto",
+    padding: 20,
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: 13,
+    opacity: 0.72,
+    marginBottom: 8,
+    letterSpacing: 0.2,
+  };
+
+  const cardStyle: React.CSSProperties = {
+    marginTop: 18,
+    padding: 18,
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.03)",
+  };
+
+  const monoBox: React.CSSProperties = {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 8,
+    flexWrap: "wrap",
+    padding: "10px 12px",
+    borderRadius: 12,
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(255,255,255,0.10)",
+    fontFamily:
+      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+    overflowWrap: "anywhere",
+    wordBreak: "break-word",
+  };
+
+  const directionStyle = (direction: string): React.CSSProperties => {
+    if (direction === "Incoming") {
+      return {
+        display: "inline-block",
+        padding: "4px 10px",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 700,
+        background: "rgba(34,197,94,0.16)",
+        border: "1px solid rgba(34,197,94,0.40)",
+        color: "rgba(220,255,230,0.98)",
+      };
+    }
+
+    if (direction === "Outgoing") {
+      return {
+        display: "inline-block",
+        padding: "4px 10px",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 700,
+        background: "rgba(239,68,68,0.16)",
+        border: "1px solid rgba(239,68,68,0.40)",
+        color: "rgba(255,220,220,0.98)",
+      };
+    }
+
+    return {
+      display: "inline-block",
+      padding: "4px 10px",
+      borderRadius: 999,
+      fontSize: 12,
+      fontWeight: 700,
+      background: "rgba(245,158,11,0.16)",
+      border: "1px solid rgba(245,158,11,0.40)",
+      color: "rgba(255,242,210,0.98)",
+    };
+  };
+
   return (
     <>
       <Head>
@@ -35,212 +179,153 @@ export default function AddressPage() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
-      <main className="page">
+      <main style={pageStyle}>
         <h1>Address</h1>
 
-        <div className="addressCard">
-          <div className="label">Wallet Address</div>
-          <div className="addressBox">
-            <span className="mono fullAddress">{String(address || "")}</span>
+        <div style={cardStyle}>
+          <div style={labelStyle}>Wallet Address</div>
+          <div style={monoBox}>
+            <span>{String(address || "")}</span>
             {address ? <CopyButton value={String(address)} /> : null}
           </div>
         </div>
 
         {balance && (
-          <div className="balanceCard">
-            <div className="label">Token Balance</div>
-            <div className="balanceValue">{balance.balance} NBCX</div>
+          <div style={cardStyle}>
+            <div style={labelStyle}>Token Balance</div>
+            <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.1 }}>
+              {balance.balance} NBCX
+            </div>
           </div>
         )}
 
-        <div className="sectionHead">
-          <h2>NBCX Transfers</h2>
-          <div className="transferCount">{transfers.length.toLocaleString()} records</div>
+        <div
+          style={{
+            marginTop: 40,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          <h2 style={{ margin: 0 }}>NBCX Transfers</h2>
+          <div style={{ fontSize: 13, opacity: 0.72 }}>
+            {normalizedTransfers.length.toLocaleString()} records
+          </div>
         </div>
 
-        <div className="scroller">
-          <table className="gridTable">
+        <div
+          style={{
+            width: "100%",
+            overflowX: "auto",
+            WebkitOverflowScrolling: "touch",
+            marginTop: 16,
+            borderRadius: 16,
+            border: "1px solid rgba(255,255,255,0.10)",
+            background: "rgba(255,255,255,0.03)",
+          }}
+        >
+          <table style={{ width: "100%", minWidth: 980, borderCollapse: "collapse" }}>
             <thead>
               <tr>
-                <th>Tx</th>
-                <th>From</th>
-                <th>To</th>
-                <th>Amount</th>
+                <th style={{ textAlign: "left", padding: "12px 10px" }}>Direction</th>
+                <th style={{ textAlign: "left", padding: "12px 10px" }}>Tx</th>
+                <th style={{ textAlign: "left", padding: "12px 10px" }}>Block</th>
+                <th style={{ textAlign: "left", padding: "12px 10px" }}>From</th>
+                <th style={{ textAlign: "left", padding: "12px 10px" }}>To</th>
+                <th style={{ textAlign: "left", padding: "12px 10px" }}>Amount</th>
+                <th style={{ textAlign: "left", padding: "12px 10px" }}>Time</th>
               </tr>
             </thead>
 
             <tbody>
-              {transfers.length ? (
-                transfers.map((t, i) => (
-                  <tr key={i}>
-                    <td className="mono">
-                      <a href={"/tx/" + t.tx} title={t.tx}>
-                        {short(t.tx)}
-                      </a>
-                      {t.tx ? <CopyButton value={t.tx} /> : null}
+              {normalizedTransfers.length ? (
+                normalizedTransfers.map((t) => (
+                  <tr key={t.key} style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+                    <td style={{ padding: "12px 10px" }}>
+                      <span style={directionStyle(t.direction)}>{t.direction}</span>
                     </td>
 
-                    <td className="mono">
-                      <a href={"/address/" + t.from} title={t.from}>
-                        {short(t.from)}
-                      </a>
-                      {t.from ? <CopyButton value={t.from} /> : null}
+                    <td
+                      style={{
+                        padding: "12px 10px",
+                        fontFamily:
+                          'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                      }}
+                    >
+                      <div style={{ display: "flex", gap: 8, alignItems: "flex-start", flexWrap: "wrap" }}>
+                        <a href={"/tx/" + t.tx} title={t.tx}>
+                          {short(t.tx)}
+                        </a>
+                        {t.tx ? <CopyButton value={t.tx} /> : null}
+                      </div>
                     </td>
 
-                    <td className="mono">
-                      <a href={"/address/" + t.to} title={t.to}>
-                        {short(t.to)}
-                      </a>
-                      {t.to ? <CopyButton value={t.to} /> : null}
+                    <td style={{ padding: "12px 10px" }}>
+                      {t.blockNumber !== null ? (
+                        <a href={"/block/" + t.blockNumber}>{t.blockNumber.toLocaleString()}</a>
+                      ) : (
+                        "-"
+                      )}
                     </td>
 
-                    <td className="amountCell">{t.amount}</td>
+                    <td
+                      style={{
+                        padding: "12px 10px",
+                        fontFamily:
+                          'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                      }}
+                    >
+                      <div style={{ display: "flex", gap: 8, alignItems: "flex-start", flexWrap: "wrap" }}>
+                        <a href={"/address/" + t.from} title={t.from}>
+                          {shortAddr(t.from)}
+                        </a>
+                        {t.from ? <CopyButton value={t.from} /> : null}
+                      </div>
+                    </td>
+
+                    <td
+                      style={{
+                        padding: "12px 10px",
+                        fontFamily:
+                          'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                      }}
+                    >
+                      <div style={{ display: "flex", gap: 8, alignItems: "flex-start", flexWrap: "wrap" }}>
+                        <a href={"/address/" + t.to} title={t.to}>
+                          {shortAddr(t.to)}
+                        </a>
+                        {t.to ? <CopyButton value={t.to} /> : null}
+                      </div>
+                    </td>
+
+                    <td style={{ padding: "12px 10px", fontWeight: 700 }}>{t.amount}</td>
+
+                    <td style={{ padding: "12px 10px" }}>
+                      {t.timestamp ? (
+                        <div title={new Date(t.timestamp * 1000).toLocaleString()}>
+                          <div style={{ fontWeight: 600 }}>{timeAgo(t.timestamp)}</div>
+                          <div style={{ marginTop: 2, fontSize: 12, opacity: 0.68 }}>
+                            {new Date(t.timestamp * 1000).toLocaleTimeString()}
+                          </div>
+                        </div>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="emptyCell">No NBCX transfers found for this address yet.</td>
+                  <td colSpan={7} style={{ padding: "18px 10px", opacity: 0.72 }}>
+                    No NBCX transfers found for this address yet.
+                  </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-
-        <style jsx>{`
-          .page {
-            max-width: 1100px;
-            margin: 40px auto;
-            padding: 20px;
-          }
-
-          .label {
-            font-size: 13px;
-            opacity: 0.72;
-            margin-bottom: 8px;
-            letter-spacing: 0.2px;
-          }
-
-          .addressCard,
-          .balanceCard {
-            margin-top: 18px;
-            padding: 18px;
-            border-radius: 18px;
-            border: 1px solid rgba(255,255,255,0.10);
-            background: rgba(255,255,255,0.03);
-          }
-
-          .addressBox {
-            display: flex;
-            align-items: flex-start;
-            gap: 8px;
-            flex-wrap: wrap;
-          }
-
-          .fullAddress {
-            display: inline-block;
-            padding: 10px 12px;
-            border-radius: 12px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.10);
-            overflow-wrap: anywhere;
-            word-break: break-word;
-          }
-
-          .balanceValue {
-            font-size: 28px;
-            font-weight: 800;
-            line-height: 1.1;
-          }
-
-          .sectionHead {
-            margin-top: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            flex-wrap: wrap;
-          }
-
-          .transferCount {
-            font-size: 13px;
-            opacity: 0.72;
-          }
-
-          .scroller {
-            width: 100%;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            margin-top: 16px;
-          }
-
-          .gridTable {
-            width: 100%;
-            min-width: 720px;
-            border-collapse: collapse;
-          }
-
-          .gridTable th,
-          .gridTable td {
-            text-align: left;
-            padding: 12px 10px;
-            white-space: nowrap;
-            vertical-align: top;
-          }
-
-          .gridTable tr {
-            border-top: 1px solid rgba(255,255,255,0.08);
-            transition: background 0.16s ease;
-          }
-
-          .gridTable tbody tr:hover {
-            background: rgba(255,255,255,0.04);
-          }
-
-          .gridTable a {
-            color: inherit;
-            text-decoration: none;
-          }
-
-          .mono {
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          }
-
-          .amountCell {
-            font-weight: 700;
-          }
-
-          .emptyCell {
-            opacity: 0.72;
-            padding: 18px 10px;
-          }
-
-          @media (max-width: 640px) {
-            .page {
-              padding: 16px;
-              margin: 24px auto;
-            }
-
-            h1 {
-              font-size: 42px;
-              line-height: 1.05;
-              margin-bottom: 6px;
-            }
-
-            h2 {
-              font-size: 26px;
-              line-height: 1.1;
-              margin: 0;
-            }
-
-            .balanceValue {
-              font-size: 24px;
-            }
-
-            .gridTable {
-              min-width: 640px;
-            }
-          }
-        `}</style>
       </main>
     </>
   );
