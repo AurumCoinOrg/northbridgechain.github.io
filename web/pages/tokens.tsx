@@ -9,6 +9,10 @@ const VERIFIED_TOKENS = new Set([
   "0x09fbf5662dbf33b0ea3d56a3fdc8cd1936c3c196"
 ]);
 
+const TOKEN_LOGOS: Record<string,string> = {
+  "0x09fbf5662dbf33b0ea3d56a3fdc8cd1936c3c196": "🟡"
+};
+
 async function rpc(method:string,params:any[]){
   const r = await fetch(PUBLIC_RPC,{
     method:"POST",
@@ -156,7 +160,8 @@ const [search,setSearch] = useState("");
               supply: formatUnits(hexToBigInt(supplyHex), decimals),
               holders: holderCount,
               transfers: transferCount,
-              verified: VERIFIED_TOKENS.has(addr.toLowerCase())
+              verified: VERIFIED_TOKENS.has(addr.toLowerCase()),
+              logo: TOKEN_LOGOS[addr.toLowerCase()] || "⚪"
             });
           }catch{}
         }
@@ -266,6 +271,7 @@ return(
 
               <td style={{padding:"12px 10px",fontWeight:700}}>
                 <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                  <span className="tokenLogo">{t.logo}</span>
                   <a href={"/token/"+t.address} style={{textDecoration:"none",color:"inherit"}}>
                     {t.name}
                   </a>
@@ -320,6 +326,18 @@ return(
       </div>
 
       <style jsx>{`
+        .tokenLogo {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 22px;
+          height: 22px;
+          border-radius: 999px;
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.10);
+          font-size: 13px;
+          line-height: 1;
+        }
         .verifiedBadge {
           display: inline-block;
           padding: 3px 8px;
