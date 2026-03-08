@@ -157,45 +157,8 @@ export default function ContractPage(){
             tokenSupply = formatUnits(hexToBigInt(totalSupplyHex), hexToInt(decimalsHex));
           }
 
-          let holderCount = 0;
-          let transferCount = 0;
-
           if(tokenName !== "-" || tokenSymbol !== "-"){
             tokenLike = true;
-
-            const latestHex = await rpc("eth_blockNumber",[]);
-            const latestLogsBlock = hexToInt(latestHex);
-            const fromLogsBlock = "0x" + Math.max(0, latestLogsBlock - 10000).toString(16);
-
-            const transferTopic = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-            const logs = await rpc("eth_getLogs", [{
-              address: addr,
-              fromBlock: fromLogsBlock,
-              toBlock: "latest",
-              topics: [transferTopic]
-            }]).catch(() => []);
-
-            transferCount = Array.isArray(logs) ? logs.length : 0;
-
-            const balances = new Map<string, bigint>();
-            const zero = "0x0000000000000000000000000000000000000000";
-
-            for(const log of Array.isArray(logs) ? logs : []){
-              const topics = Array.isArray(log?.topics) ? log.topics : [];
-              const from = topics[1] ? ("0x" + String(topics[1]).slice(-40)).toLowerCase() : "";
-              const to = topics[2] ? ("0x" + String(topics[2]).slice(-40)).toLowerCase() : "";
-              const amount = hexToBigInt(log?.data);
-
-              if(from && from !== zero){
-                balances.set(from, (balances.get(from) || 0n) - amount);
-              }
-
-              if(to && to !== zero){
-                balances.set(to, (balances.get(to) || 0n) + amount);
-              }
-            }
-
-            holderCount = Array.from(balances.values()).filter(v => v > 0n).length;
           }
         }catch{}
 
@@ -209,9 +172,7 @@ export default function ContractPage(){
           tokenName,
           tokenSymbol,
           tokenDecimals,
-          tokenSupply: "-",
-          holderCount: 0,
-          transferCount: 0
+          tokenSupply: "-"
         });
       }catch(e:any){
         setErr(e?.message || "Failed to load contract");
@@ -411,16 +372,6 @@ export default function ContractPage(){
                 <div>
                   <div style={{fontSize:13,opacity:0.72}}>Total Supply</div>
                   <div style={{marginTop:6,fontWeight:700}}>{row.tokenSupply || "-"}</div>
-                </div>
-
-                <div>
-                  <div style={{fontSize:13,opacity:0.72}}>Holder Count</div>
-                  <div style={{marginTop:6,fontWeight:700}}>{Number(row.holderCount || 0).toLocaleString()}</div>
-                </div>
-
-                <div>
-                  <div style={{fontSize:13,opacity:0.72}}>Transfer Count</div>
-                  <div style={{marginTop:6,fontWeight:700}}>{Number(row.transferCount || 0).toLocaleString()}</div>
                 </div>
 
                 <div>

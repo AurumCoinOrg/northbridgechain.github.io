@@ -209,9 +209,9 @@ export default function ContractPage(){
           tokenName,
           tokenSymbol,
           tokenDecimals,
-          tokenSupply: "-",
-          holderCount: 0,
-          transferCount: 0
+          tokenSupply: typeof tokenSupply !== "undefined" ? tokenSupply : "-",
+          holderCount: typeof holderCount !== "undefined" ? holderCount : 0,
+          transferCount: typeof transferCount !== "undefined" ? transferCount : 0
         });
       }catch(e:any){
         setErr(e?.message || "Failed to load contract");
