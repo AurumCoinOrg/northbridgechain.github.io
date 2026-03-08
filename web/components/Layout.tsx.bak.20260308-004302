@@ -15,8 +15,6 @@ export default function Layout({ children }: Props) {
       { href: "/staking", label: "Staking" },
       { href: "/wallet", label: "Wallet" },
       { href: "/contracts", label: "Contracts" },
-      { href: "/contracts-registry", label: "Contracts Registry" },
-      { href: "/contracts-registry", label: "Contracts Registry" },
   { href: "/contract-map", label: "Contract Map" },
   { href: "/network", label: "Network Status" },
   { href: "/supply", label: "Supply" },

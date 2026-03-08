@@ -92,6 +92,8 @@ export default function Tokens(){
   const [tokens,setTokens] = useState<any[]>([]);
 const [search,setSearch] = useState("");
 const [sortBy,setSortBy] = useState("transfers");
+const [page,setPage] = useState(1);
+const pageSize = 20;
   const [loading,setLoading] = useState(true);
   const [err,setErr] = useState("");
 
@@ -347,7 +349,7 @@ return(
                 Scanning chain...
               </td>
             </tr>
-          ) : tokens.length ? filteredTokens.map((t,i)=>(
+          ) : tokens.length ? filteredTokens.slice((page-1)*pageSize,page*pageSize).map((t,i)=>(
             <tr key={i} style={{borderTop:"1px solid rgba(255,255,255,0.08)"}}>
 
               <td style={{padding:"12px 10px",fontWeight:700}}>
@@ -400,6 +402,16 @@ return(
           </tbody>
 
         </table>
+
+<div style={{marginTop:20,display:"flex",gap:12,alignItems:"center"}}>
+<button onClick={()=>setPage(Math.max(1,page-1))}>Prev</button>
+
+<div style={{opacity:0.7}}>
+Page {page}
+</div>
+
+<button onClick={()=>setPage(page+1)}>Next</button>
+</div>
       </div>
 
       <div style={{marginTop:12,fontSize:13,opacity:0.68}}>
