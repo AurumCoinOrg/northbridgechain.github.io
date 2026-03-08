@@ -195,13 +195,6 @@ const filteredTokens = tokens.filter(t => {
 })
 
 
-const totalTokens = tokens.length;
-const totalVerified = tokens.filter((t) => t.verified).length;
-const totalTransfers = tokens.reduce((sum, t) => sum + (Number(t.transfers) || 0), 0);
-const mostActiveToken = tokens.length
-  ? [...tokens].sort((a, b) => (Number(b.transfers) || 0) - (Number(a.transfers) || 0))[0]
-  : null;
-
 return(
   <>
     <Head>
