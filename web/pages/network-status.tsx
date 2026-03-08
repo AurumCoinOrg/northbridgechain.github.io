@@ -1,7 +1,8 @@
 import Head from "next/head";
 import { useEffect, useState } from "react";
+import { PUBLIC_RPC } from "../lib/publicRpc";
 
-const RPC_URL = "/api/rpc";
+const RPC_URL = PUBLIC_RPC;
 const NBCX = "0x09fbf5662DbF33B0ea3D56a3Fdc8cD1936c3c196";
 const STAKING = "0x688192F914b058bF7a5533e5Fb1da8f9e45ACBa2";
 

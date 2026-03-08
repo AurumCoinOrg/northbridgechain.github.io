@@ -1,7 +1,8 @@
 import Head from "next/head";
 import { useEffect, useState } from "react";
+import { PUBLIC_RPC } from "../lib/publicRpc";
 
-const RPC = "/api/rpc";
+const RPC = PUBLIC_RPC;
 
 async function rpc(method:string,params:any[]=[]){
   const r = await fetch(RPC,{

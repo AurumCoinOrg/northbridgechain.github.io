@@ -1,8 +1,9 @@
 import Head from "next/head";
 import { useEffect, useRef, useState } from "react";
 import ExplorerSearch from "../components/ExplorerSearch";
+import { PUBLIC_RPC } from "../lib/publicRpc";
 
-const RPC = "/api/rpc";
+const RPC = PUBLIC_RPC;
 
 async function rpc(method: string, params: any[] = []) {
   const r = await fetch(RPC, {

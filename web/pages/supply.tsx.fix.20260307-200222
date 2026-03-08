@@ -1,8 +1,8 @@
 import Head from "next/head";
 import { useEffect, useState } from "react";
 import { Pie } from "react-chartjs-2";
-import { PUBLIC_RPC } from "../lib/publicRpc";
 import {
+import { PUBLIC_RPC } from "../lib/publicRpc";
   Chart as ChartJS,
   ArcElement,
   Tooltip,

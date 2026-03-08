@@ -2,9 +2,8 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import CopyButton from "../../../components/CopyButton";
-import { PUBLIC_RPC } from "../../../lib/publicRpc";
 
-const RPC = PUBLIC_RPC;
+const RPC = "/api/rpc";
 const TRANSFER_TOPIC =
   "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const TOTAL_SUPPLY_CALL = "0x18160ddd";
