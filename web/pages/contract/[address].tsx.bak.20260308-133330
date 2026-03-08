@@ -92,7 +92,7 @@ export default function ContractPage(){
         const latestHex = await rpc("eth_blockNumber",[]);
         const latest = hexToInt(latestHex);
 
-        for(let i=0;i<120;i++){
+        for(let i=0;i<400;i++){
           const n = latest - i;
           if(n < 0) break;
 
@@ -296,11 +296,6 @@ export default function ContractPage(){
               background:"rgba(255,255,255,0.03)"
             }}>
               <div style={{fontSize:13,opacity:0.72,marginBottom:8}}>Creation Transaction</div>
-              {!row.creationTx ? (
-                <div style={{marginBottom:10,fontSize:13,opacity:0.72}}>
-                  Creation details may be outside the quick scan window. Check Contracts Registry for recent deployments.
-                </div>
-              ) : null}
               <div style={{
                 padding:"10px 12px",
                 borderRadius:12,
@@ -361,7 +356,7 @@ export default function ContractPage(){
             </div>
 
             <div style={{marginTop:14,fontSize:13,opacity:0.68}}>
-              Discovery scan window: latest 120 blocks
+              Discovery scan window: latest 400 blocks
             </div>
           </>
         ) : null}
