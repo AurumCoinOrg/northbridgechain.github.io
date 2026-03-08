@@ -5,6 +5,10 @@ import { PUBLIC_RPC } from "../lib/publicRpc";
 const TRANSFER_TOPIC =
 "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
+const VERIFIED_TOKENS = new Set([
+  "0x09fbf5662dbf33b0ea3d56a3fdc8cd1936c3c196"
+]);
+
 async function rpc(method:string,params:any[]){
   const r = await fetch(PUBLIC_RPC,{
     method:"POST",
@@ -82,6 +86,7 @@ function decodeStringResult(hex?:string){
 export default function Tokens(){
 
   const [tokens,setTokens] = useState<any[]>([]);
+const [search,setSearch] = useState("");
   const [loading,setLoading] = useState(true);
   const [err,setErr] = useState("");
 
@@ -150,7 +155,8 @@ export default function Tokens(){
               symbol: decodeStringResult(symbolHex),
               supply: formatUnits(hexToBigInt(supplyHex), decimals),
               holders: holderCount,
-              transfers: transferCount
+              transfers: transferCount,
+              verified: VERIFIED_TOKENS.has(addr.toLowerCase())
             });
           }catch{}
         }
@@ -169,7 +175,22 @@ export default function Tokens(){
 
   },[]);
 
-  return(
+  
+
+const filteredTokens = tokens.filter(t => {
+
+  const q = search.toLowerCase()
+
+  return (
+    t.name.toLowerCase().includes(q) ||
+    t.symbol.toLowerCase().includes(q) ||
+    t.address.toLowerCase().includes(q)
+  )
+
+})
+
+
+return(
   <>
     <Head>
       <title>Tokens</title>
@@ -179,6 +200,22 @@ export default function Tokens(){
     <main style={{maxWidth:1100,margin:"40px auto",padding:20}}>
 
       <h1>Tokens</h1>
+
+<input
+  placeholder="Search token name, symbol, or address"
+  value={search}
+  onChange={e=>setSearch(e.target.value)}
+  style={{
+    marginTop:20,
+    padding:"10px 14px",
+    width:"100%",
+    maxWidth:420,
+    borderRadius:10,
+    border:"1px solid rgba(255,255,255,0.15)",
+    background:"rgba(255,255,255,0.05)",
+    color:"white"
+  }}
+/>
       <div style={{marginTop:10,opacity:0.72}}>Automatic token registry from recent transfer activity</div>
 
       {err ? (
@@ -224,13 +261,18 @@ export default function Tokens(){
                 Scanning chain...
               </td>
             </tr>
-          ) : tokens.length ? tokens.map((t,i)=>(
+          ) : tokens.length ? filteredTokens.map((t,i)=>(
             <tr key={i} style={{borderTop:"1px solid rgba(255,255,255,0.08)"}}>
 
               <td style={{padding:"12px 10px",fontWeight:700}}>
-                <a href={"/token/"+t.address} style={{textDecoration:"none",color:"inherit"}}>
-                  {t.name}
-                </a>
+                <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                  <a href={"/token/"+t.address} style={{textDecoration:"none",color:"inherit"}}>
+                    {t.name}
+                  </a>
+                  {t.verified ? (
+                    <span className="verifiedBadge">VERIFIED</span>
+                  ) : null}
+                </div>
               </td>
 
               <td style={{padding:"12px 10px"}}>
@@ -276,6 +318,21 @@ export default function Tokens(){
       <div style={{marginTop:12,fontSize:13,opacity:0.68}}>
         Scan window: latest 10,000 blocks
       </div>
+
+      <style jsx>{`
+        .verifiedBadge {
+          display: inline-block;
+          padding: 3px 8px;
+          border-radius: 999px;
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.35px;
+          text-transform: uppercase;
+          background: rgba(34,197,94,0.16);
+          border: 1px solid rgba(34,197,94,0.40);
+          color: rgba(220,255,230,0.98);
+        }
+      `}</style>
 
     </main>
   </>
