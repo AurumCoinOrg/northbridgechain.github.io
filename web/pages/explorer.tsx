@@ -5,6 +5,8 @@ import { PUBLIC_RPC } from "../lib/publicRpc";
 
 const RPC = PUBLIC_RPC;
 const NBCX = "0x09fbf5662DbF33B0ea3D56a3Fdc8cD1936c3c196";
+const ERC20_TRANSFER_TOPIC =
+  "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
 async function rpc(method: string, params: any[] = []) {
   const r = await fetch(RPC, {
@@ -114,12 +116,26 @@ export default function Explorer() {
 
             let status = "pending";
             let value = "0";
+            let tokenTransferCount = 0;
+            let tokenContract = "";
 
             try {
               const receipt = await rpc("eth_getTransactionReceipt",[tx.hash]);
               if(receipt && receipt.status){
                 status = receipt.status === "0x1" ? "success" : "failed";
               }
+
+              const logs = Array.isArray(receipt?.logs) ? receipt.logs : [];
+              const tokenLogs = logs.filter((log:any) => {
+                const firstTopic =
+                  Array.isArray(log?.topics) && log.topics.length
+                    ? String(log.topics[0]).toLowerCase()
+                    : "";
+                return firstTopic === ERC20_TRANSFER_TOPIC;
+              });
+
+              tokenTransferCount = tokenLogs.length;
+              tokenContract = tokenLogs[0]?.address || "";
             } catch {}
 
             try{
@@ -134,7 +150,9 @@ export default function Explorer() {
               timestamp: ts,
               fresh: false,
               status,
-              value
+              value,
+              tokenTransferCount,
+              tokenContract
             };
 
             txArr.push(item);
@@ -269,12 +287,24 @@ export default function Explorer() {
                     <span className="subtle">block {Number(tx.block).toLocaleString()}</span>
                   </div>
                   <div className="liveMeta">
+                    <span className={"statusPill " + (tx.status === "success" ? "statusSuccess" : tx.status === "failed" ? "statusFailed" : "statusPending")}>
+                      {tx.status}
+                    </span>
+                    {tx.tokenTransferCount ? (
+                      <span className="tokenPill">
+                        TOKEN {tx.tokenTransferCount}
+                      </span>
+                    ) : null}
                     <span className="mono">{shortAddr(tx.from)}</span>
                     <span>→</span>
                     <span className="mono">{tx.to ? shortAddr(tx.to) : "-"}</span>
                     <span className="subtle">{tx.value} NBC</span>
+                    {tx.tokenContract ? (
+                      <a className="tokenLink" href={`/token/${tx.tokenContract}`} title={tx.tokenContract}>
+                        {shortAddr(tx.tokenContract)}
+                      </a>
+                    ) : null}
                     <span className="subtle">{timeAgo(tx.timestamp)}</span>
-                    <span className="subtle">{tx.status}</span>
                   </div>
                 </a>
               ))
@@ -471,6 +501,48 @@ export default function Explorer() {
             flex-wrap: wrap;
             font-size: 13px;
             opacity: 0.82;
+          }
+          .statusPill {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.35px;
+            text-transform: uppercase;
+          }
+          .statusSuccess {
+            background: rgba(34,197,94,0.16);
+            border: 1px solid rgba(34,197,94,0.40);
+            color: rgba(220,255,230,0.98);
+          }
+          .statusFailed {
+            background: rgba(239,68,68,0.16);
+            border: 1px solid rgba(239,68,68,0.40);
+            color: rgba(255,220,220,0.98);
+          }
+          .statusPending {
+            background: rgba(245,158,11,0.16);
+            border: 1px solid rgba(245,158,11,0.40);
+            color: rgba(255,242,210,0.98);
+          }
+          .tokenPill {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.35px;
+            text-transform: uppercase;
+            background: rgba(59,130,246,0.16);
+            border: 1px solid rgba(59,130,246,0.40);
+            color: rgba(220,235,255,0.98);
+          }
+          .tokenLink {
+            text-decoration: none;
+            color: inherit;
+            font-family: monospace;
+            opacity: 0.88;
           }
           .liveBadge {
             display: inline-block;
