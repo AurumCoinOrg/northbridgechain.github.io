@@ -29,21 +29,6 @@ function hexToInt(h?:string){
   return parseInt(h,16);
 }
 
-function hexToBigInt(h?:string){
-  try{
-    return h ? BigInt(h) : 0n;
-  }catch{
-    return 0n;
-  }
-}
-
-function formatUnits(value:bigint, decimals:number){
-  const base = 10n ** BigInt(decimals);
-  const whole = value / base;
-  const frac = (value % base).toString().padStart(decimals, "0").slice(0,4).replace(/0+$/,"");
-  return frac ? whole.toString() + "." + frac : whole.toString();
-}
-
 function decodeStringResult(hex?:string){
   if(!hex || hex === "0x") return "-";
 
@@ -141,21 +126,15 @@ export default function ContractPage(){
         let tokenLike = false;
 
         try{
-          const [nameHex, symbolHex, decimalsHex, totalSupplyHex] = await Promise.all([
+          const [nameHex, symbolHex, decimalsHex] = await Promise.all([
             rpc("eth_call",[{ to:addr, data:"0x06fdde03" },"latest"]).catch(()=>"0x"),
             rpc("eth_call",[{ to:addr, data:"0x95d89b41" },"latest"]).catch(()=>"0x"),
-            rpc("eth_call",[{ to:addr, data:"0x313ce567" },"latest"]).catch(()=>"0x"),
-            rpc("eth_call",[{ to:addr, data:"0x18160ddd" },"latest"]).catch(()=>"0x")
+            rpc("eth_call",[{ to:addr, data:"0x313ce567" },"latest"]).catch(()=>"0x")
           ]);
 
           tokenName = decodeStringResult(nameHex);
           tokenSymbol = decodeStringResult(symbolHex);
           tokenDecimals = decimalsHex && decimalsHex !== "0x" ? String(hexToInt(decimalsHex)) : "-";
-
-          let tokenSupply = "-";
-          if (tokenDecimals !== "-") {
-            tokenSupply = formatUnits(hexToBigInt(totalSupplyHex), hexToInt(decimalsHex));
-          }
 
           if(tokenName !== "-" || tokenSymbol !== "-"){
             tokenLike = true;
@@ -171,8 +150,7 @@ export default function ContractPage(){
           tokenLike,
           tokenName,
           tokenSymbol,
-          tokenDecimals,
-          tokenSupply: "-"
+          tokenDecimals
         });
       }catch(e:any){
         setErr(e?.message || "Failed to load contract");
@@ -367,11 +345,6 @@ export default function ContractPage(){
                 <div>
                   <div style={{fontSize:13,opacity:0.72}}>Decimals</div>
                   <div style={{marginTop:6,fontWeight:700}}>{row.tokenDecimals}</div>
-                </div>
-
-                <div>
-                  <div style={{fontSize:13,opacity:0.72}}>Total Supply</div>
-                  <div style={{marginTop:6,fontWeight:700}}>{row.tokenSupply || "-"}</div>
                 </div>
 
                 <div>

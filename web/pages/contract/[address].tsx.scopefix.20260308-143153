@@ -172,7 +172,7 @@ export default function ContractPage(){
           tokenName,
           tokenSymbol,
           tokenDecimals,
-          tokenSupply: "-"
+          tokenSupply
         });
       }catch(e:any){
         setErr(e?.message || "Failed to load contract");

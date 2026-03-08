@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import Head from "next/head";
 import CopyButton from "../../components/CopyButton";
 import { PUBLIC_RPC } from "../../lib/publicRpc";
+import { PUBLIC_RPC } from "../../lib/publicRpc";
 
 const RPC = PUBLIC_RPC;
 const NBCX = "0x09fbf5662DbF33B0ea3D56a3Fdc8cD1936c3c196";
@@ -260,24 +261,7 @@ export default function AddressPage() {
       </Head>
 
       <main style={pageStyle}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <h1 style={{ margin: 0 }}>Address</h1>
-          <span
-            style={{
-              display: "inline-block",
-              padding: "6px 12px",
-              borderRadius: 999,
-              fontSize: 12,
-              fontWeight: 800,
-              letterSpacing: 0.3,
-              background: isContract ? "rgba(168,85,247,0.16)" : "rgba(34,197,94,0.16)",
-              border: isContract ? "1px solid rgba(168,85,247,0.40)" : "1px solid rgba(34,197,94,0.40)",
-              color: isContract ? "rgba(243,232,255,0.98)" : "rgba(220,255,230,0.98)",
-            }}
-          >
-            {isContract ? "Contract" : "Wallet"}
-          </span>
-        </div>
+        <h1>Address</h1>
 
         <div style={{ marginTop: 16, display: "flex", gap: 14, flexWrap: "wrap" }}>
           <a href="/explorer" style={{ textDecoration: "none", color: "inherit" }}>
@@ -307,12 +291,6 @@ export default function AddressPage() {
 
         <div style={cardStyle}>
           <div style={labelStyle}>Token Balance</div>
-            {isContract ? (
-              <div style={{ marginTop: 10, fontSize: 13, opacity: 0.72 }}>
-                This address has deployed bytecode and is being treated as a contract.
-              </div>
-            ) : null}
-
           <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.1 }}>
             {balance || "0"} NBCX
           </div>

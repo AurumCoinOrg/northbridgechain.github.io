@@ -307,12 +307,6 @@ export default function AddressPage() {
 
         <div style={cardStyle}>
           <div style={labelStyle}>Token Balance</div>
-            {isContract ? (
-              <div style={{ marginTop: 10, fontSize: 13, opacity: 0.72 }}>
-                This address has deployed bytecode and is being treated as a contract.
-              </div>
-            ) : null}
-
           <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.1 }}>
             {balance || "0"} NBCX
           </div>
