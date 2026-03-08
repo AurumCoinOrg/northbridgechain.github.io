@@ -136,7 +136,7 @@ export default function ContractsRegistryPage(){
               ) : rows.length ? rows.map((r,i)=>(
                 <tr key={i} style={{borderTop:"1px solid rgba(255,255,255,0.08)"}}>
                   <td style={{padding:"12px 10px",fontFamily:'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'}}>
-                    <a href={"/address/" + r.contractAddress} title={r.contractAddress} style={{textDecoration:"none",color:"inherit"}}>
+                    <a href={"/contract/" + r.contractAddress} title={r.contractAddress} style={{textDecoration:"none",color:"inherit"}}>
                       {shortAddr(r.contractAddress)}
                     </a>
                   </td>
