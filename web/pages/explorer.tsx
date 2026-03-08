@@ -301,7 +301,9 @@ export default function Explorer() {
                   <div className="liveRow">
                     <span className="liveBadge">NEW</span>
                     <span className="mono">{shortHash(tx.hash)}</span>
-                    <span className="subtle">block {Number(tx.block).toLocaleString()}</span>
+                    <a className="liveMiniLink" href={`/block/${tx.block}`}>
+                      block {Number(tx.block).toLocaleString()}
+                    </a>
                   </div>
                   <div className="liveMeta">
                     <span className={"statusPill " + (tx.status === "success" ? "statusSuccess" : tx.status === "failed" ? "statusFailed" : "statusPending")}>
@@ -317,9 +319,17 @@ export default function Explorer() {
                         TOKEN {tx.tokenTransferCount}
                       </span>
                     ) : null}
-                    <span className="mono">{shortAddr(tx.from)}</span>
+                    <a className="liveMiniLink mono" href={`/address/${tx.from}`} title={tx.from}>
+                      {shortAddr(tx.from)}
+                    </a>
                     <span>→</span>
-                    <span className="mono">{tx.to ? shortAddr(tx.to) : "-"}</span>
+                    {tx.to ? (
+                      <a className="liveMiniLink mono" href={`/address/${tx.to}`} title={tx.to}>
+                        {shortAddr(tx.to)}
+                      </a>
+                    ) : (
+                      <span className="mono">-</span>
+                    )}
                     <span className="subtle">{formatNativeValue(tx.value)} NBC</span>
                     {tx.createdContract ? (
                       <a className="tokenLink" href={`/address/${tx.createdContract}`} title={tx.createdContract}>
@@ -508,6 +518,11 @@ export default function Explorer() {
             background: rgba(255,255,255,0.03);
             text-decoration: none;
             color: inherit;
+          }
+          .liveMiniLink {
+            text-decoration: none;
+            color: inherit;
+            opacity: 0.92;
           }
           .liveFresh {
             border-color: rgba(59,130,246,0.35);
