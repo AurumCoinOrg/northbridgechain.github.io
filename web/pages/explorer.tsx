@@ -50,6 +50,17 @@ function timeAgo(ts?: number | null) {
   return d + "d ago";
 }
 
+function formatNativeValue(v?: string | null) {
+  if (!v) return "0";
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "0";
+  if (n === 0) return "0";
+  if (n < 0.0001) return "<0.0001";
+  if (n < 1) return n.toFixed(4).replace(/0+$/,"").replace(/\.$/,"");
+  if (n < 1000) return n.toFixed(2).replace(/0+$/,"").replace(/\.$/,"");
+  return n.toLocaleString(undefined,{maximumFractionDigits:2});
+}
+
 export default function Explorer() {
   const [blocks, setBlocks] = useState<any[]>([]);
   const [txs, setTxs] = useState<any[]>([]);
@@ -309,7 +320,7 @@ export default function Explorer() {
                     <span className="mono">{shortAddr(tx.from)}</span>
                     <span>→</span>
                     <span className="mono">{tx.to ? shortAddr(tx.to) : "-"}</span>
-                    <span className="subtle">{tx.value} NBC</span>
+                    <span className="subtle">{formatNativeValue(tx.value)} NBC</span>
                     {tx.createdContract ? (
                       <a className="tokenLink" href={`/address/${tx.createdContract}`} title={tx.createdContract}>
                         {shortAddr(tx.createdContract)}
