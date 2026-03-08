@@ -21,7 +21,6 @@ export default function Layout({ children }: Props) {
       { href: "/richlist", label: "Rich List" },
   { href: "/network-health", label: "Network Health" },
   { href: "/explorer", label: "Explorer" },
-      { href: "/tokens", label: "Tokens" },
       { href: "/transparency", label: "Transparency" },
       { href: "/tokenomics", label: "Tokenomics" },
       { href: "/architecture", label: "Architecture" },
