@@ -4,6 +4,7 @@ import ExplorerSearch from "../components/ExplorerSearch";
 import { PUBLIC_RPC } from "../lib/publicRpc";
 
 const RPC = PUBLIC_RPC;
+const NBCX = "0x09fbf5662DbF33B0ea3D56a3Fdc8cD1936c3c196";
 
 async function rpc(method: string, params: any[] = []) {
   const r = await fetch(RPC, {
@@ -50,6 +51,7 @@ function timeAgo(ts?: number | null) {
 export default function Explorer() {
   const [blocks, setBlocks] = useState<any[]>([]);
   const [txs, setTxs] = useState<any[]>([]);
+  const [liveTxs, setLiveTxs] = useState<any[]>([]);
   const [latest, setLatest] = useState<number>(0);
   const [lastUpdated, setLastUpdated] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -59,6 +61,7 @@ export default function Explorer() {
   const deadRef = useRef(false);
   const loadingRef = useRef(false);
   const latestSeenRef = useRef<number | null>(null);
+  const txSeenRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     deadRef.current = false;
@@ -75,7 +78,7 @@ export default function Explorer() {
 
         if (!force && latestSeenRef.current === latestBlock) {
           if (!deadRef.current) {
-            setRefreshState("No new block yet");
+            setRefreshState("Watching for new blocks");
             setLastUpdated(new Date().toLocaleTimeString());
             setErr("");
           }
@@ -84,6 +87,7 @@ export default function Explorer() {
 
         const blockArr: any[] = [];
         const txArr: any[] = [];
+        const newLive: any[] = [];
 
         for (let i = 0; i < 10; i++) {
           const num = latestBlock - i;
@@ -107,13 +111,25 @@ export default function Explorer() {
           });
 
           for (const tx of b.transactions || []) {
-            txArr.push({
+            const item = {
               hash: tx.hash,
               from: tx.from,
               to: tx.to,
               block: num,
               timestamp: ts,
-            });
+              fresh: false,
+            };
+
+            txArr.push(item);
+
+            if (!txSeenRef.current.has(tx.hash)) {
+              txSeenRef.current.add(tx.hash);
+              newLive.push({
+                ...item,
+                fresh: true,
+              });
+            }
+
             if (txArr.length >= 12) break;
           }
 
@@ -122,12 +138,26 @@ export default function Explorer() {
 
         if (deadRef.current) return;
 
+        if (force && txSeenRef.current.size === 0) {
+          for (const tx of txArr) {
+            txSeenRef.current.add(tx.hash);
+          }
+          newLive.length = 0;
+        }
+
         latestSeenRef.current = latestBlock;
         setLatest(latestBlock);
         setBlocks(blockArr);
         setTxs(txArr.slice(0, 12));
+
+        if (newLive.length) {
+          setLiveTxs((prev) => [...newLive.reverse(), ...prev].slice(0, 20));
+          setRefreshState(`New activity: ${newLive.length} tx`);
+        } else {
+          setRefreshState(force ? "Loaded" : "Updated");
+        }
+
         setLastUpdated(new Date().toLocaleTimeString());
-        setRefreshState(force ? "Loaded" : "Updated");
         setErr("");
       } catch (e: any) {
         if (!deadRef.current) {
@@ -141,7 +171,7 @@ export default function Explorer() {
     }
 
     load(true);
-    const t = setInterval(() => load(false), 3000);
+    const t = setInterval(() => load(false), 1000);
 
     return () => {
       deadRef.current = true;
@@ -160,14 +190,82 @@ export default function Explorer() {
         <h1>Explorer</h1>
         <ExplorerSearch />
 
+        <div className="quickLinks">
+          <a className="quickCard" href={latest > 0 ? `/block/${latest}` : "/explorer"}>
+            <div className="quickTitle">Blocks</div>
+            <div className="quickText">
+              Latest block {latest > 0 ? latest.toLocaleString() : "loading"}
+            </div>
+          </a>
+
+          <a className="quickCard" href={txs[0]?.hash ? `/tx/${txs[0].hash}` : "/explorer"}>
+            <div className="quickTitle">Transactions</div>
+            <div className="quickText">
+              Jump to latest tx
+            </div>
+          </a>
+
+          <a className="quickCard" href={txs[0]?.from ? `/address/${txs[0].from}` : "/explorer"}>
+            <div className="quickTitle">Addresses</div>
+            <div className="quickText">
+              Open latest active wallet
+            </div>
+          </a>
+
+          <a className="quickCard" href="/tokens">
+            <div className="quickTitle">Tokens</div>
+            <div className="quickText">
+              View token registry
+            </div>
+          </a>
+
+          <a className="quickCard" href={`/token/${NBCX}`}>
+            <div className="quickTitle">NBCX</div>
+            <div className="quickText">
+              Token overview page
+            </div>
+          </a>
+        </div>
+
         <div className="stats">
           <div>Latest Block: {latest.toLocaleString()}</div>
-          <div>Auto-refresh: 3s</div>
+          <div>Live Poll: 1s</div>
           <div>Last Check: {lastUpdated || "-"}</div>
           <div>Status: {loading ? "Loading..." : refreshState}</div>
         </div>
 
         {err ? <div className="errorBox">{err}</div> : null}
+
+        <section className="liveSection">
+          <div className="sectionHead">
+            <h2>Live Transactions</h2>
+            <div className="subtle">{liveTxs.length.toLocaleString()} recent events</div>
+          </div>
+
+          <div className="liveFeed">
+            {liveTxs.length ? (
+              liveTxs.map((tx, i) => (
+                <a className={"liveItem" + (tx.fresh ? " liveFresh" : "")} key={tx.hash + ":" + i} href={`/tx/${tx.hash}`}>
+                  <div className="liveRow">
+                    <span className="liveBadge">NEW</span>
+                    <span className="mono">{shortHash(tx.hash)}</span>
+                    <span className="subtle">block {Number(tx.block).toLocaleString()}</span>
+                  </div>
+                  <div className="liveMeta">
+                    <span className="mono">{shortAddr(tx.from)}</span>
+                    <span>→</span>
+                    <span className="mono">{tx.to ? shortAddr(tx.to) : "-"}</span>
+                    <span className="subtle">{timeAgo(tx.timestamp)}</span>
+                  </div>
+                </a>
+              ))
+            ) : (
+              <div className="liveEmpty">
+                {loading ? "Waiting for chain activity..." : "No new transactions captured yet."}
+              </div>
+            )}
+          </div>
+        </section>
 
         <div className="sections">
           <section>
@@ -279,8 +377,34 @@ export default function Explorer() {
             margin: 40px auto;
             padding: 20px;
           }
+          .quickLinks {
+            margin-top: 18px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px;
+          }
+          .quickCard {
+            display: block;
+            padding: 16px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.10);
+            background: rgba(255,255,255,0.04);
+            text-decoration: none;
+            color: inherit;
+          }
+          .quickTitle {
+            font-size: 18px;
+            font-weight: 800;
+            line-height: 1.1;
+          }
+          .quickText {
+            margin-top: 8px;
+            font-size: 13px;
+            opacity: 0.74;
+            line-height: 1.35;
+          }
           .stats {
-            margin-top: 12px;
+            margin-top: 18px;
             display: flex;
             gap: 20px;
             flex-wrap: wrap;
@@ -292,6 +416,60 @@ export default function Explorer() {
             background: rgba(239, 68, 68, 0.12);
             border: 1px solid rgba(239, 68, 68, 0.28);
             color: rgba(255, 220, 220, 0.98);
+          }
+          .liveSection {
+            margin-top: 34px;
+          }
+          .liveFeed {
+            margin-top: 16px;
+            display: grid;
+            gap: 10px;
+          }
+          .liveItem {
+            display: block;
+            padding: 14px 16px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.10);
+            background: rgba(255,255,255,0.03);
+            text-decoration: none;
+            color: inherit;
+          }
+          .liveFresh {
+            border-color: rgba(59,130,246,0.35);
+            background: rgba(59,130,246,0.08);
+          }
+          .liveRow {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+          }
+          .liveMeta {
+            margin-top: 6px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+            font-size: 13px;
+            opacity: 0.82;
+          }
+          .liveBadge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: rgba(34,197,94,0.16);
+            border: 1px solid rgba(34,197,94,0.40);
+            color: rgba(220,255,230,0.98);
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.4px;
+          }
+          .liveEmpty {
+            padding: 18px 16px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.10);
+            background: rgba(255,255,255,0.03);
+            opacity: 0.78;
           }
           .sections {
             display: grid;
