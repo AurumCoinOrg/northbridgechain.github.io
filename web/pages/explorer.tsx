@@ -118,11 +118,16 @@ export default function Explorer() {
             let value = "0";
             let tokenTransferCount = 0;
             let tokenContract = "";
+            let createdContract = "";
 
             try {
               const receipt = await rpc("eth_getTransactionReceipt",[tx.hash]);
               if(receipt && receipt.status){
                 status = receipt.status === "0x1" ? "success" : "failed";
+              }
+
+              if (receipt?.contractAddress) {
+                createdContract = receipt.contractAddress;
               }
 
               const logs = Array.isArray(receipt?.logs) ? receipt.logs : [];
@@ -152,7 +157,8 @@ export default function Explorer() {
               status,
               value,
               tokenTransferCount,
-              tokenContract
+              tokenContract,
+              createdContract
             };
 
             txArr.push(item);
@@ -290,6 +296,11 @@ export default function Explorer() {
                     <span className={"statusPill " + (tx.status === "success" ? "statusSuccess" : tx.status === "failed" ? "statusFailed" : "statusPending")}>
                       {tx.status}
                     </span>
+                    {tx.createdContract ? (
+                      <span className="contractPill">
+                        NEW CONTRACT
+                      </span>
+                    ) : null}
                     {tx.tokenTransferCount ? (
                       <span className="tokenPill">
                         TOKEN {tx.tokenTransferCount}
@@ -299,7 +310,11 @@ export default function Explorer() {
                     <span>→</span>
                     <span className="mono">{tx.to ? shortAddr(tx.to) : "-"}</span>
                     <span className="subtle">{tx.value} NBC</span>
-                    {tx.tokenContract ? (
+                    {tx.createdContract ? (
+                      <a className="tokenLink" href={`/address/${tx.createdContract}`} title={tx.createdContract}>
+                        {shortAddr(tx.createdContract)}
+                      </a>
+                    ) : tx.tokenContract ? (
                       <a className="tokenLink" href={`/token/${tx.tokenContract}`} title={tx.tokenContract}>
                         {shortAddr(tx.tokenContract)}
                       </a>
@@ -537,6 +552,18 @@ export default function Explorer() {
             background: rgba(59,130,246,0.16);
             border: 1px solid rgba(59,130,246,0.40);
             color: rgba(220,235,255,0.98);
+          }
+          .contractPill {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.35px;
+            text-transform: uppercase;
+            background: rgba(168,85,247,0.16);
+            border: 1px solid rgba(168,85,247,0.40);
+            color: rgba(243,232,255,0.98);
           }
           .tokenLink {
             text-decoration: none;
