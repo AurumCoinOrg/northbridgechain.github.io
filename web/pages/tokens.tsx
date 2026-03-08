@@ -91,6 +91,7 @@ export default function Tokens(){
 
   const [tokens,setTokens] = useState<any[]>([]);
 const [search,setSearch] = useState("");
+const [sortBy,setSortBy] = useState("transfers");
   const [loading,setLoading] = useState(true);
   const [err,setErr] = useState("");
 
@@ -182,17 +183,24 @@ const [search,setSearch] = useState("");
 
   
 
-const filteredTokens = tokens.filter(t => {
+const filteredTokens = [...tokens]
+  .filter(t => {
 
-  const q = search.toLowerCase()
+    const q = search.toLowerCase()
 
-  return (
-    t.name.toLowerCase().includes(q) ||
-    t.symbol.toLowerCase().includes(q) ||
-    t.address.toLowerCase().includes(q)
-  )
+    return (
+      t.name.toLowerCase().includes(q) ||
+      t.symbol.toLowerCase().includes(q) ||
+      t.address.toLowerCase().includes(q)
+    )
 
-})
+  })
+  .sort((a,b) => {
+    if (sortBy === "name") return a.name.localeCompare(b.name)
+    if (sortBy === "holders") return (Number(b.holders) || 0) - (Number(a.holders) || 0)
+    if (sortBy === "supply") return (Number(b.supply) || 0) - (Number(a.supply) || 0)
+    return (Number(b.transfers) || 0) - (Number(a.transfers) || 0)
+  })
 
 
 const totalTokens = tokens.length;
@@ -213,12 +221,12 @@ return(
 
       <h1>Tokens</h1>
 
+<div style={{marginTop:20,display:"flex",gap:12,flexWrap:"wrap",alignItems:"center"}}>
 <input
   placeholder="Search token name, symbol, or address"
   value={search}
   onChange={e=>setSearch(e.target.value)}
   style={{
-    marginTop:20,
     padding:"10px 14px",
     width:"100%",
     maxWidth:420,
@@ -228,6 +236,24 @@ return(
     color:"white"
   }}
 />
+
+<select
+  value={sortBy}
+  onChange={e=>setSortBy(e.target.value)}
+  style={{
+    padding:"10px 14px",
+    borderRadius:10,
+    border:"1px solid rgba(255,255,255,0.15)",
+    background:"rgba(255,255,255,0.05)",
+    color:"white"
+  }}
+>
+  <option value="transfers">Sort: Transfers</option>
+  <option value="holders">Sort: Holders</option>
+  <option value="supply">Sort: Supply</option>
+  <option value="name">Sort: Name</option>
+</select>
+</div>
       <div style={{marginTop:10,opacity:0.72}}>Automatic token registry from recent transfer activity</div>
 
       <div className="statsGrid">
