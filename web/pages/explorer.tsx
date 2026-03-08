@@ -111,6 +111,21 @@ export default function Explorer() {
           });
 
           for (const tx of b.transactions || []) {
+
+            let status = "pending";
+            let value = "0";
+
+            try {
+              const receipt = await rpc("eth_getTransactionReceipt",[tx.hash]);
+              if(receipt && receipt.status){
+                status = receipt.status === "0x1" ? "success" : "failed";
+              }
+            } catch {}
+
+            try{
+              value = (BigInt(tx.value || "0x0")/1000000000000000000n).toString();
+            }catch{}
+
             const item = {
               hash: tx.hash,
               from: tx.from,
@@ -118,6 +133,8 @@ export default function Explorer() {
               block: num,
               timestamp: ts,
               fresh: false,
+              status,
+              value
             };
 
             txArr.push(item);
@@ -255,7 +272,9 @@ export default function Explorer() {
                     <span className="mono">{shortAddr(tx.from)}</span>
                     <span>→</span>
                     <span className="mono">{tx.to ? shortAddr(tx.to) : "-"}</span>
+                    <span className="subtle">{tx.value} NBC</span>
                     <span className="subtle">{timeAgo(tx.timestamp)}</span>
+                    <span className="subtle">{tx.status}</span>
                   </div>
                 </a>
               ))
