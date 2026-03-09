@@ -239,7 +239,7 @@ export default function Explorer() {
       </Head>
 
       <main className="page">
-        
+        <h1>Explorer</h1>
         <ExplorerSearch />
 
         <div className="quickLinks">

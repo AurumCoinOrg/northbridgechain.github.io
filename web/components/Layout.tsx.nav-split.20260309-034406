@@ -1,28 +1,3 @@
-
-const PRIMARY_NAV = [
-  { href: "/explorer", label: "Explorer" },
-  { href: "/tokens", label: "Tokens" },
-  { href: "/contracts", label: "Contracts" },
-  { href: "/dex", label: "DEX" },
-  { href: "/markets", label: "Markets" },
-  { href: "/dex-analytics", label: "Analytics" },
-  { href: "/wallet", label: "Wallet" }
-];
-
-
-const SECONDARY_NAV = [
-  { href: "/staking", label: "Staking" },
-  { href: "/supply", label: "Supply" },
-  { href: "/richlist", label: "Rich List" },
-  { href: "/network-health", label: "Network Health" },
-  { href: "/transparency", label: "Transparency" },
-  { href: "/tokenomics", label: "Tokenomics" },
-  { href: "/architecture", label: "Architecture" },
-  { href: "/roadmap", label: "Roadmap" },
-  { href: "/governance", label: "Governance" },
-  { href: "/whitepaper", label: "Whitepaper" }
-];
-
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
