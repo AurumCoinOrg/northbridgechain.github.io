@@ -1,219 +1,233 @@
-import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
+import type { ReactNode } from "react";
 
-type Props = {
-  children: React.ReactNode;
+type NavItem = {
+  href: string;
+  label: string;
 };
 
-export default function Layout({ children }: Props) {
-  const [open, setOpen] = useState(false);
-  const router = useRouter();
-
-  const links = useMemo(
-    () => [
-      { href: "/staking", label: "Staking" },
-      { href: "/wallet", label: "Wallet" },
-      { href: "/swap", label: "Swap" },
-      { href: "/create-pair", label: "Create Pair" },
-      { href: "/dex", label: "DEX" },
-      { href: "/markets", label: "Markets" },
-      { href: "/dex-activity", label: "DEX Activity" },
-      { href: "/liquidity", label: "Liquidity" },
-      { href: "/remove-liquidity", label: "Remove LP" },
-      { href: "/pools", label: "Pools" },
-      { href: "/analytics", label: "Analytics" },
-      { href: "/chart", label: "Chart" },
-      { href: "/depth", label: "Depth" },
-      { href: "/trades", label: "Trades" },
-      { href: "/dex-analytics", label: "DEX Analytics" },
-      { href: "/contracts", label: "Contracts" },
-      { href: "/contracts-registry", label: "Contracts Registry" },
-  { href: "/contract-map", label: "Contract Map" },
-  { href: "/network", label: "Network Status" },
-  { href: "/supply", label: "Supply" },
-      { href: "/richlist", label: "Rich List" },
-  { href: "/network-health", label: "Network Health" },
+const MAIN_NAV: NavItem[] = [
   { href: "/explorer", label: "Explorer" },
-      { href: "/tokens", label: "Tokens" },
-      { href: "/transparency", label: "Transparency" },
-      { href: "/tokenomics", label: "Tokenomics" },
-      { href: "/architecture", label: "Architecture" },
-      { href: "/roadmap", label: "Roadmap" },
-      { href: "/governance", label: "Governance" },
-      { href: "/whitepaper-v0-1", label: "Whitepaper" },
-    ],
-    []
-  );
+  { href: "/tokens", label: "Tokens" },
+  { href: "/contracts", label: "Contracts" },
+  { href: "/dex", label: "DEX" },
+  { href: "/markets", label: "Markets" },
+  { href: "/dex-analytics", label: "Analytics" },
+  { href: "/wallet", label: "Wallet" }
+];
 
-  function NavLink({ href, label }: { href: string; label: string }) {
-    const active = router.pathname === href;
-    return (
-      <Link
-        href={href}
-        className={"nb-navlink" + (active ? " nb-navlink-active" : "")}
-        onClick={() => setOpen(false)}
-      >
-        {label}
-      </Link>
-    );
-  }
+const DEX_NAV: NavItem[] = [
+  { href: "/swap", label: "Swap" },
+  { href: "/liquidity", label: "Liquidity" },
+  { href: "/remove-liquidity", label: "Remove LP" },
+  { href: "/pools", label: "Pools" },
+  { href: "/chart", label: "Chart" },
+  { href: "/depth", label: "Depth" },
+  { href: "/trades", label: "Trades" }
+];
+
+function isDexRoute(pathname: string) {
+  return [
+    "/dex",
+    "/markets",
+    "/swap",
+    "/liquidity",
+    "/remove-liquidity",
+    "/pools",
+    "/chart",
+    "/depth",
+    "/trades",
+    "/dex-activity",
+    "/dex-analytics",
+    "/create-pair"
+  ].some((x) => pathname === x || pathname.startsWith(x + "/"));
+}
+
+export default function Layout({ children }: { children: ReactNode }) {
+  const router = useRouter();
+  const pathname = router.pathname || "";
 
   return (
-    <>
-      <style jsx global>{`
-        /* NB_MOBILE_HEADER_FIX */
+    <div style={pageStyle}>
+      <header style={headerStyle}>
+        <div style={headerInnerStyle}>
+          <div style={brandRowStyle}>
+            <Link href="/" style={brandStyle}>
+              Northbridge Chain
+            </Link>
 
-        .nb-header {
-          position: sticky;
-          top: 0;
-          z-index: 9999;
-          backdrop-filter: blur(18px);
-          -webkit-backdrop-filter: blur(18px);
-          background: rgba(10, 12, 20, 0.65);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-          padding-top: env(safe-area-inset-top);
-        }
-
-        .nb-header-inner {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 14px;
-          padding: 14px 16px;
-        }
-
-        .nb-brand {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          min-width: 0;
-        }
-
-        .nb-brand-title {
-          font-weight: 800;
-          font-size: 28px;
-          letter-spacing: 0.2px;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .nb-burger {
-          width: 44px;
-          height: 44px;
-          border-radius: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.14);
-          background: rgba(0, 0, 0, 0.25);
-          color: rgba(255, 255, 255, 0.92);
-          display: grid;
-          place-items: center;
-          cursor: pointer;
-          user-select: none;
-        }
-
-        .nb-menu {
-          display: none;
-        }
-
-        .nb-menu-open {
-          display: block;
-          padding: 10px 12px 14px;
-          border-top: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        .nb-menu-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 10px;
-        }
-
-        .nb-navlink {
-          display: block;
-          padding: 12px 12px;
-          border-radius: 14px;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(0, 0, 0, 0.22);
-          color: rgba(255, 255, 255, 0.92);
-          font-weight: 700;
-          text-decoration: none;
-          text-align: center;
-          line-height: 1.15;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .nb-navlink-active {
-          border-color: rgba(120, 170, 255, 0.55);
-          background: rgba(40, 90, 180, 0.22);
-        }
-
-        /* Desktop: show pills inline, hide burger */
-        @media (min-width: 901px) {
-          .nb-burger {
-            display: none;
-          }
-          .nb-menu {
-            display: block !important;
-            padding: 0 16px 14px;
-          }
-          .nb-menu-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-          }
-          .nb-navlink {
-            text-align: left;
-            padding: 10px 14px;
-          }
-        }
-
-        /* The important part: content is NEVER hidden under the header */
-        .nb-page {
-          min-height: 100vh;
-        }
-
-        /* Fix “cut off / squished” long strings on mobile (addresses, hashes, etc.) */
-        pre,
-        code,
-        .mono,
-        .addr,
-        .address,
-        .hash {
-          overflow-wrap: anywhere !important;
-          word-break: break-word !important;
-        }
-
-        /* If any page uses wide tables/rows, allow horizontal scroll instead of crushing text */
-        .nb-content,
-        main,
-        section {
-          max-width: 100%;
-        }
-      `}</style>
-
-      <header className="nb-header">
-        <div className="nb-header-inner">
-          <div className="nb-brand">
-            <Link href="/" className="nb-brand-title">Northbridge Chain</Link>
+            <div style={rightToolsStyle}>
+              <span style={networkBadgeStyle}>Mainnet</span>
+            </div>
           </div>
 
-          <button className="nb-burger" aria-label="Menu" onClick={() => setOpen((v) => !v)}>
-            ☰
-          </button>
-        </div>
+          <nav style={mainNavStyle}>
+            {MAIN_NAV.map((item) => {
+              const active =
+                pathname === item.href || pathname.startsWith(item.href + "/");
 
-        <div className={"nb-menu " + (open ? "nb-menu-open" : "")}>
-          <div className="nb-menu-grid">
-            {links.map((l) => (
-              <NavLink key={l.href} href={l.href} label={l.label} />
-            ))}
-          </div>
-        </div>
-</header>
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  style={active ? activePillStyle : pillStyle}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
 
-      <div className="nb-page">{children}</div>
-    </>
+          {isDexRoute(pathname) ? (
+            <div style={subnavWrapStyle}>
+              <div style={subnavLabelStyle}>DEX</div>
+              <nav style={subnavStyle}>
+                {DEX_NAV.map((item) => {
+                  const active =
+                    pathname === item.href || pathname.startsWith(item.href + "/");
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      style={active ? activeSubPillStyle : subPillStyle}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+          ) : null}
+        </div>
+      </header>
+
+      <main style={mainStyle}>{children}</main>
+    </div>
   );
 }
+
+const pageStyle: React.CSSProperties = {
+  minHeight: "100vh",
+  background:
+    "linear-gradient(90deg, rgba(24,32,86,0.35) 0%, rgba(5,11,30,1) 35%, rgba(5,11,30,1) 70%, rgba(15,57,52,0.35) 100%)",
+  color: "white"
+};
+
+const headerStyle: React.CSSProperties = {
+  position: "sticky",
+  top: 0,
+  zIndex: 20,
+  backdropFilter: "blur(10px)",
+  background: "rgba(5,11,30,0.86)",
+  borderBottom: "1px solid rgba(255,255,255,0.08)"
+};
+
+const headerInnerStyle: React.CSSProperties = {
+  maxWidth: 1400,
+  margin: "0 auto",
+  padding: "18px 20px 16px"
+};
+
+const brandRowStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 16,
+  marginBottom: 16
+};
+
+const brandStyle: React.CSSProperties = {
+  color: "#c7d7ff",
+  textDecoration: "none",
+  fontSize: 28,
+  fontWeight: 800,
+  letterSpacing: -0.5
+};
+
+const rightToolsStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 10
+};
+
+const networkBadgeStyle: React.CSSProperties = {
+  padding: "8px 12px",
+  borderRadius: 999,
+  border: "1px solid rgba(255,255,255,0.12)",
+  background: "rgba(255,255,255,0.04)",
+  fontSize: 13,
+  opacity: 0.9
+};
+
+const mainNavStyle: React.CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 12,
+  marginBottom: 12
+};
+
+const subnavWrapStyle: React.CSSProperties = {
+  marginTop: 4,
+  paddingTop: 12,
+  borderTop: "1px solid rgba(255,255,255,0.08)"
+};
+
+const subnavLabelStyle: React.CSSProperties = {
+  fontSize: 12,
+  letterSpacing: 1.2,
+  opacity: 0.6,
+  marginBottom: 10
+};
+
+const subnavStyle: React.CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 10
+};
+
+const pillStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "10px 16px",
+  borderRadius: 999,
+  border: "1px solid rgba(255,255,255,0.12)",
+  background: "rgba(255,255,255,0.03)",
+  color: "white",
+  textDecoration: "none",
+  fontWeight: 700
+};
+
+const activePillStyle: React.CSSProperties = {
+  ...pillStyle,
+  border: "1px solid rgba(122,162,255,0.6)",
+  background: "rgba(78,110,220,0.18)"
+};
+
+const subPillStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "8px 14px",
+  borderRadius: 999,
+  border: "1px solid rgba(255,255,255,0.10)",
+  background: "rgba(255,255,255,0.025)",
+  color: "rgba(255,255,255,0.92)",
+  textDecoration: "none",
+  fontWeight: 600,
+  fontSize: 14
+};
+
+const activeSubPillStyle: React.CSSProperties = {
+  ...subPillStyle,
+  border: "1px solid rgba(122,162,255,0.55)",
+  background: "rgba(78,110,220,0.16)"
+};
+
+const mainStyle: React.CSSProperties = {
+  maxWidth: 1400,
+  margin: "0 auto",
+  padding: "0 20px 40px"
+};
