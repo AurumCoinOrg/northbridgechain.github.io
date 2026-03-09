@@ -26,6 +26,7 @@ export default function Layout({ children }: Props) {
       { href: "/chart", label: "Chart" },
       { href: "/depth", label: "Depth" },
       { href: "/trades", label: "Trades" },
+      { href: "/dex-analytics", label: "DEX Analytics" },
       { href: "/contracts", label: "Contracts" },
       { href: "/contracts-registry", label: "Contracts Registry" },
   { href: "/contract-map", label: "Contract Map" },
