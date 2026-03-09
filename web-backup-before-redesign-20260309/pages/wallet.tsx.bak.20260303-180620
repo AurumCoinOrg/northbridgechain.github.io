@@ -1,0 +1,422 @@
+import React, { useEffect, useMemo, useState } from "react";
+import { ethers } from "ethers";
+
+const RPC_URL =
+  (typeof window !== "undefined" ? window.location.origin : "") + "/api/rpc";
+
+// Contracts (prod)
+const NBCX = "0x09fbf5662DbF33B0ea3D56a3Fdc8cD1936c3c196";
+const STAKING = "0x688192F914b058bF7a5533e5Fb1da8f9e45ACBa2";
+
+const NBCX_ABI = [
+  "function name() view returns (string)",
+  "function symbol() view returns (string)",
+  "function decimals() view returns (uint8)",
+  "function balanceOf(address) view returns (uint256)",
+];
+
+const STAKING_ABI = [
+  "function staked(address) view returns (uint256)",
+  "function earned(address) view returns (uint256)",
+  "function totalStaked() view returns (uint256)",
+  "function rewardRate() view returns (uint256)",
+];
+
+function short(addr: string) {
+  return addr.slice(0, 6) + "…" + addr.slice(-4);
+}
+
+// NB_WALLET_URL_HELPERS
+function nbGetAddrFromQuery(): string {
+  if (typeof window === "undefined") return "";
+  const q = new URLSearchParams(window.location.search);
+  return (q.get("addr") || "").trim();
+}
+
+function nbSetAddrInQuery(addr: string) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (addr) url.searchParams.set("addr", addr);
+  else url.searchParams.delete("addr");
+  window.history.replaceState(null, "", url.toString());
+}
+
+
+function cardStyle(): React.CSSProperties {
+  return {
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.06)",
+    borderRadius: 14,
+    padding: 16,
+    boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+    backdropFilter: "blur(10px)",
+  };
+}
+
+function pillStyle(): React.CSSProperties {
+  return {
+    display: "inline-flex",
+    gap: 10,
+    alignItems: "center",
+    padding: "10px 12px",
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(0,0,0,0.18)",
+    color: "rgba(255,255,255,0.92)",
+    textDecoration: "none",
+  };
+}
+
+export default function WalletPage() {
+  // NB_FAUCET_UI
+  const [faucetMsg, setFaucetMsg] = useState<string>("");
+  const [faucetBusy, setFaucetBusy] = useState<boolean>(false);
+
+  async function requestFaucet() {
+    try {
+      setFaucetMsg("");
+      setFaucetBusy(true);
+
+      const eth = (window as any).ethereum;
+      if (!eth) {
+        setFaucetMsg("MetaMask not found. Install MetaMask on this device.");
+        return;
+      }
+
+      const accounts: string[] = await eth.request({ method: "eth_requestAccounts" });
+      const address = accounts?.[0];
+      if (!address) {
+        setFaucetMsg("No wallet connected.");
+        return;
+      }
+
+      setFaucetMsg("Requesting 1,000 test NBCX…");
+
+      const resp = await fetch("/api/faucet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address }),
+      });
+
+      const j = await resp.json().catch(() => ({}));
+      if (!resp.ok || !j.ok) {
+        setFaucetMsg(j.error || "Faucet failed.");
+        return;
+      }
+
+      setFaucetMsg(`Sent 1,000 test NBCX → ${address}. Tx: ${j.txHash}`);
+    } catch (e: any) {
+      setFaucetMsg(e?.message || "Faucet failed.");
+    } finally {
+      setFaucetBusy(false);
+    }
+  }
+
+  const [input, setInput] = useState<string>("");
+  const [addr, setAddr] = useState<string>("");
+  const [busy, setBusy] = useState<boolean>(false);
+  const [err, setErr] = useState<string>("");
+  const [autoRefresh, setAutoRefresh] = useState<boolean>(false);
+
+  const [tokenName, setTokenName] = useState<string>("-");
+  const [tokenSymbol, setTokenSymbol] = useState<string>("-");
+  const [decimals, setDecimals] = useState<number>(18);
+
+  const [bal, setBal] = useState<bigint>(0n);
+  const [staked, setStaked] = useState<bigint>(0n);
+  const [earned, setEarned] = useState<bigint>(0n);
+
+  const provider = useMemo(() => {
+    return new ethers.JsonRpcProvider(RPC_URL);
+  }, []);
+
+  const token = useMemo(() => new ethers.Contract(NBCX, NBCX_ABI, provider), [provider]);
+  const staking = useMemo(() => new ethers.Contract(STAKING, STAKING_ABI, provider), [provider]);
+
+  // auto-load from ?addr=... (read-only deep link)
+  useEffect(() => {
+    const q = nbGetAddrFromQuery();
+    if (!q) return;
+    try {
+      const checksum = ethers.getAddress(q);
+      setInput(checksum);
+      setAddr(checksum);
+      load(checksum);
+    } catch {
+      setErr("Invalid address in URL");
+    }
+  }, []);
+
+  // auto-refresh (10s) when enabled and an address is loaded
+  useEffect(() => {
+    if (!autoRefresh) return;
+    if (!addr) return;
+    const t = setInterval(() => {
+      load(addr);
+    }, 10000);
+    return () => clearInterval(t);
+  }, [autoRefresh, addr]);
+
+  // prefill with connected wallet if available (optional)
+  useEffect(() => {
+    (async () => {
+      try {
+        const eth = (globalThis as any).ethereum;
+        if (!eth) return;
+
+        const accounts: string[] = await eth.request({ method: "eth_accounts" });
+        if (accounts && accounts[0]) {
+          setInput(accounts[0]);
+          setAddr(accounts[0]);
+        }
+      } catch {
+        // ignore
+      }
+    })();
+  }, []);
+
+  // load token metadata once
+  useEffect(() => {
+    (async () => {
+      try {
+        const [n, s, d] = await Promise.all([token.name(), token.symbol(), token.decimals()]);
+        setTokenName(n);
+        setTokenSymbol(s);
+        setDecimals(Number(d));
+      } catch {
+        // ignore (RPC down etc.)
+      }
+    })();
+  }, [token]);
+
+  async function load(a: string) {
+    setErr("");
+    setBusy(true);
+    try {
+      const checksum = ethers.getAddress(a);
+      const [b, st, er] = await Promise.all([
+        token.balanceOf(checksum),
+        staking.staked(checksum),
+        staking.earned(checksum),
+      ]);
+      setBal(BigInt(b));
+      setStaked(BigInt(st));
+      setEarned(BigInt(er));
+    } catch (e: any) {
+      setErr(e?.shortMessage || e?.message || String(e));
+      setBal(0n);
+      setStaked(0n);
+      setEarned(0n);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function onLookup() {
+    const trimmed = input.trim();
+    if (!trimmed) return;
+    try {
+      const checksum = ethers.getAddress(trimmed);
+      setAddr(checksum);
+      load(checksum);
+    } catch {
+      setErr("Invalid address");
+    }
+  }
+
+  function fmt(x: bigint) {
+    try {
+      return Number(ethers.formatUnits(x, decimals)).toLocaleString(undefined, {
+        maximumFractionDigits: 8,
+      });
+    } catch {
+      return "0";
+    }
+  }
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        color: "rgba(255,255,255,0.92)",
+        background:
+          "radial-gradient(1200px 600px at 20% 10%, rgba(255,215,0,0.18), transparent 60%)," +
+          "radial-gradient(900px 500px at 80% 20%, rgba(120,160,255,0.18), transparent 60%)," +
+          "linear-gradient(180deg, #070A12, #05060B 55%, #04040A)",
+      }}
+    >
+      {/* NB_FAUCET_CARD */}
+      <div style={{
+        border: "1px solid rgba(255,255,255,0.12)",
+        background: "rgba(255,255,255,0.06)",
+        borderRadius: 16,
+        padding: 14,
+        marginBottom: 14
+      }}>
+        <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 6 }}>Get Test NBCX</div>
+        <div style={{ opacity: 0.8, fontSize: 13, lineHeight: 1.35, marginBottom: 10 }}>
+          Step 1: Make sure you&apos;re on the Northbridge testnet in MetaMask.<br />
+          Step 2: Tap the button below.<br />
+          Step 3: Wait a few seconds — you&apos;ll receive <b>1,000 test NBCX</b> (rate-limited).
+        </div>
+        <button
+          onClick={requestFaucet}
+          disabled={faucetBusy}
+          style={{
+            width: "100%",
+            borderRadius: 14,
+            padding: "12px 14px",
+            border: "1px solid rgba(255,255,255,0.14)",
+            background: faucetBusy ? "rgba(255,255,255,0.10)" : "rgba(255,215,0,0.18)",
+            color: "rgba(255,255,255,0.92)",
+            fontWeight: 800,
+            cursor: faucetBusy ? "not-allowed" : "pointer"
+          }}
+        >
+          {faucetBusy ? "Sending…" : "Get 1,000 Test NBCX"}
+        </button>
+        {faucetMsg && (
+          <div style={{ marginTop: 10, fontSize: 12, opacity: 0.85, overflowWrap: "anywhere" }}>
+            {faucetMsg}
+          </div>
+        )}
+      </div>
+
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 18px 60px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <a href="/" style={pillStyle()}>
+            ← Home
+          </a>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <a href="/staking" style={pillStyle()}>Staking Dashboard</a>
+            <a href="/contracts" style={pillStyle()}>Contracts</a>
+            <a href="/explorer" style={pillStyle()}>Explorer Lite</a>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 22 }}>
+          <div style={{ opacity: 0.85, fontSize: 12, letterSpacing: 1.2, textTransform: "uppercase" }}>
+            Northbridge Chain • Wallet (Read-Only)
+          </div>
+
+          <h1 style={{ margin: "10px 0 10px", fontSize: 40, lineHeight: 1.1 }}>
+            Check any address
+          </h1>
+
+          <div style={{ opacity: 0.82, maxWidth: 820 }}>
+            Paste an address to view <b>NBCX balance</b>, <b>staked</b>, and <b>earned</b> rewards. No connection required.
+          </div>
+        </div>
+
+        <div style={{ marginTop: 18, ...cardStyle() }}>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") onLookup(); }}
+              placeholder="0x… address"
+              style={{
+                flex: "1 1 520px",
+                padding: "12px 12px",
+                borderRadius: 12,
+                border: "1px solid rgba(255,255,255,0.14)",
+                background: "rgba(0,0,0,0.25)",
+                color: "rgba(255,255,255,0.92)",
+                outline: "none",
+              }}
+            />
+            <button
+              onClick={onLookup}
+              disabled={busy}
+              style={{
+                padding: "12px 14px",
+                borderRadius: 12,
+                border: "1px solid rgba(255,255,255,0.16)",
+                background: busy ? "rgba(255,255,255,0.10)" : "rgba(255,215,0,0.18)",
+                color: "rgba(255,255,255,0.92)",
+                cursor: busy ? "not-allowed" : "pointer",
+              }}
+            >
+              {busy ? "Loading…" : "Lookup"}
+            </button>
+
+          <div style={{ display: "flex", gap: 14, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
+            <label style={{ display: "flex", gap: 8, alignItems: "center", userSelect: "none", opacity: 0.92 }}>
+              <input
+                type="checkbox"
+                checked={autoRefresh}
+                onChange={(e) => setAutoRefresh(e.target.checked)}
+              />
+              Auto-refresh (10s)
+            </label>
+
+            <a href={addr ? (`/staking?addr=`) : "/staking"} style={{ textDecoration: "none", color: "rgba(255,255,255,0.92)" }}>Open Staking →</a>
+            <a href={addr ? (`/explorer?addr=`) : "/explorer"} style={{ textDecoration: "none", color: "rgba(255,255,255,0.92)" }}>Open Explorer →</a>
+          </div>
+
+        </div>
+
+          <div style={{ marginTop: 12, display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
+            <div style={cardStyle()}>
+              <div style={{ opacity: 0.7, fontSize: 12 }}>RPC</div>
+              <div style={{ marginTop: 6, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>
+                {RPC_URL}
+              </div>
+            </div>
+
+            <div style={cardStyle()}>
+              <div style={{ opacity: 0.7, fontSize: 12 }}>Token</div>
+              <div style={{ marginTop: 6, fontSize: 16 }}>
+                {tokenName} <span style={{ opacity: 0.8 }}>({tokenSymbol})</span>
+              </div>
+              <div style={{ marginTop: 6, opacity: 0.75, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>
+                NBCX: {short(NBCX)}
+              </div>
+            </div>
+
+            <div style={cardStyle()}>
+              <div style={{ opacity: 0.7, fontSize: 12 }}>Staking</div>
+              <div style={{ marginTop: 6, opacity: 0.75, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>
+                {short(STAKING)}
+              </div>
+            </div>
+          </div>
+
+          {err ? (
+            <div style={{ marginTop: 12, color: "rgba(255,120,120,0.95)" }}>
+              Error: {err}
+            </div>
+          ) : null}
+        </div>
+
+        <div style={{ marginTop: 14, display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
+          <div style={cardStyle()}>
+            <div style={{ opacity: 0.7, fontSize: 12 }}>Address</div>
+            <div style={{ marginTop: 6, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>
+              {addr ? addr : "—"}
+            </div>
+          </div>
+
+          <div style={cardStyle()}>
+            <div style={{ opacity: 0.7, fontSize: 12 }}>NBCX Balance</div>
+            <div style={{ marginTop: 8, fontSize: 26 }}>{fmt(bal)}</div>
+          </div>
+
+          <div style={cardStyle()}>
+            <div style={{ opacity: 0.7, fontSize: 12 }}>Staked</div>
+            <div style={{ marginTop: 8, fontSize: 26 }}>{fmt(staked)}</div>
+          </div>
+
+          <div style={cardStyle()}>
+            <div style={{ opacity: 0.7, fontSize: 12 }}>Earned</div>
+            <div style={{ marginTop: 8, fontSize: 26 }}>{fmt(earned)}</div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 18, opacity: 0.7, fontSize: 12 }}>
+          Read-only view. Transactions (stake/claim) happen on the Staking Dashboard.
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,250 @@
+import React from "react";
+
+const NBCX = "0x09fbf5662DbF33B0ea3D56a3Fdc8cD1936c3c196";
+const STAKING = "0x688192F914b058bF7a5533e5Fb1da8f9e45ACBa2";
+const LOCK = "0x2B1FcA8a64e97D64F4b80198D1e85f107f8A75F3";
+
+function cardStyle(): React.CSSProperties {
+  return {
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.06)",
+    borderRadius: 14,
+    padding: 16,
+    boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+    backdropFilter: "blur(10px)",
+  };
+}
+
+function pillStyle(): React.CSSProperties {
+  return {
+    display: "inline-flex",
+    gap: 10,
+    alignItems: "center",
+    padding: "10px 12px",
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(0,0,0,0.18)",
+    color: "rgba(255,255,255,0.92)",
+    textDecoration: "none",
+  };
+}
+
+function mono(): React.CSSProperties {
+  return {
+    fontFamily:
+      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+    fontSize: 13,
+    wordBreak: "break-word",
+  };
+}
+
+function rowLabel(): React.CSSProperties {
+  return { opacity: 0.75, fontSize: 12, letterSpacing: 1.1, textTransform: "uppercase" };
+}
+
+function short(addr: string) {
+  return addr.slice(0, 6) + "…" + addr.slice(-4);
+}
+
+// Timelock drill opId (optional)
+const DRILL_OP_ID = "0x24ffd07a925a62fadbd351e93da4bcd953ab930ef4b1712a596b05c3a260743b";
+
+export default function Transparency() {
+  const lastUpdated = new Date().toISOString().slice(0, 10);
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        color: "rgba(255,255,255,0.92)",
+        background:
+          "radial-gradient(1200px 600px at 20% 10%, rgba(255,215,0,0.18), transparent 60%)," +
+          "radial-gradient(900px 500px at 80% 20%, rgba(120,160,255,0.18), transparent 60%)," +
+          "linear-gradient(180deg, #070A12, #05060B 55%, #04040A)",
+      }}
+    >
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 18px 60px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <a href="/" style={pillStyle()}>
+            ← Home
+          </a>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <a href="/contracts" style={pillStyle()}>Contracts</a>
+            <a href="/explorer" style={pillStyle()}>Explorer Lite</a>
+            <a href="/whitepaper-v0-1" style={pillStyle()}>Whitepaper</a>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 22 }}>
+          <div style={{ opacity: 0.85, fontSize: 12, letterSpacing: 1.2, textTransform: "uppercase" }}>
+            Northbridge Chain • Transparency
+          </div>
+          <h1 style={{ margin: "10px 0 10px", fontSize: 44, lineHeight: 1.06 }}>Trust, by default.</h1>
+          <div style={{ opacity: 0.82, maxWidth: 900 }}>
+            This page summarizes who controls what, what is immutable, and what can change. It’s designed for users,
+            builders, and exchanges.
+          </div>
+        </div>
+
+        <div style={{ marginTop: 18, display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-start" }}>
+  <div style={{ flex: "1.35 1 420px", minWidth: 320, display: "grid", gap: 14 }}>
+    <div style={cardStyle()}>
+            <div style={rowLabel()}>Status</div>
+            <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+              <div><b>Network:</b> Northbridge Testnet</div>
+              <div><b>Governance:</b> Multisig-controlled (recommended)</div>
+
+            <div style={{ marginTop: 12, padding: 12, border: "1px solid #2a2a2a", borderRadius: 12 }}>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>Timelock Live Status (Drill)</div>
+              <div style={{ marginBottom: 6 }}>
+                OP_ID: <code style={{ wordBreak: "break-all" }}>{DRILL_OP_ID}</code>
+              </div>
+              <div style={{ marginBottom: 6 }}>
+              </div>
+              <TimelockStatus />
+            </div>
+
+              <div><b>Staking:</b> Live</div>
+              <div><b>Last updated:</b> {lastUpdated}</div>
+            </div>
+          </div>
+    <div style={cardStyle()}>
+            <div style={rowLabel()}>Security</div>
+            <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+              <div><b>Audits:</b> Not published yet</div>
+              <div><b>Bug bounty:</b> Not announced yet</div>
+              <div style={{ opacity: 0.85 }}>
+                Until an audit is published, treat the protocol as <b>experimental</b> and do not deposit funds you can’t
+                afford to lose.
+              </div>
+            </div>
+          </div>
+  </div>
+  <div style={{ flex: "1 1 320px", minWidth: 320 }}>
+    <div style={cardStyle()}>
+            <div style={rowLabel()}>Upgradability & Controls</div>
+            <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+              <div><b>Emissions:</b> Adjustable on-chain (by admin)</div>
+              <div><b>Staking:</b> Admin may pause / configure (depending on contract)</div>
+              <div><b>Token:</b> Standard ERC-20 (supply rules depend on deployment)</div>
+              <div style={{ opacity: 0.85 }}>
+                Exact permissions are visible on the <a href="/contracts" style={{ color: "rgba(255,215,0,0.95)" }}>Contracts</a> page.
+              </div>
+            </div>
+          </div>
+  </div>
+</div>
+
+        <div style={{ marginTop: 16, ...cardStyle() }}>
+          <div style={rowLabel()}>Core Contracts</div>
+          <div style={{ marginTop: 12, display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+            <div style={cardStyle()}>
+              <div style={{ opacity: 0.85 }}>NBCX Token</div>
+              <div style={{ marginTop: 10 }}>
+                <div><b>Address:</b> <span style={mono()}>{NBCX}</span></div>
+                <div style={{ marginTop: 8, opacity: 0.85 }}><b>Short:</b> {short(NBCX)}</div>
+              </div>
+            </div>
+
+            <div style={cardStyle()}>
+              <div style={{ opacity: 0.85 }}>Staking</div>
+              <div style={{ marginTop: 10 }}>
+                <div><b>Address:</b> <span style={mono()}>{STAKING}</span></div>
+                <div style={{ marginTop: 8, opacity: 0.85 }}><b>Short:</b> {short(STAKING)}</div>
+              </div>
+            </div>
+
+            <div style={cardStyle()}>
+              <div style={{ opacity: 0.85 }}>Lock / Vault</div>
+              <div style={{ marginTop: 10 }}>
+                <div><b>Address:</b> <span style={mono()}>{LOCK}</span></div>
+                <div style={{ marginTop: 8, opacity: 0.85 }}><b>Short:</b> {short(LOCK)}</div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 14, opacity: 0.85 }}>
+            Tip: you can paste any address into <a href="/wallet" style={{ color: "rgba(255,215,0,0.95)" }}>Wallet</a> to view balance + staked + earned.
+          </div>
+        </div>
+
+        <div style={{ marginTop: 16, display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+          <div style={cardStyle()}>
+            <div style={rowLabel()}>What we publish</div>
+            <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+              <div>• Contract addresses and roles</div>
+              <div>• Admin controls and intended policy</div>
+              <div>• Roadmap and release notes</div>
+              <div>• RPC endpoint(s) for public access</div>
+            </div>
+          </div>
+
+          <div style={cardStyle()}>
+            <div style={rowLabel()}>What’s next</div>
+            <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+              <div>• Publish ownership / multisig address on Contracts page</div>
+              <div>• Add audit + bounty section when ready</div>
+              <div>• Add on-chain permission snapshots (read-only)</div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 18, opacity: 0.7, fontSize: 12 }}>
+          © {new Date().getFullYear()} Northbridge Chain • Transparency is a living document.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+
+function formatLeft(sec: number) {
+  sec = Math.max(0, Number(sec || 0));
+  const d = Math.floor(sec / 86400);
+  const h = Math.floor((sec % 86400) / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = Math.floor(sec % 60);
+  const parts = [] as string[];
+  if (d) parts.push(`${d}d`);
+  if (h || d) parts.push(`${h}h`);
+  if (m || h || d) parts.push(`${m}m`);
+  parts.push(`${s}s`);
+  return parts.join(' ');
+}
+
+function TimelockStatus() {
+  const [data, setData] = React.useState<any>(null);
+  const [err, setErr] = React.useState<string>("");
+
+  React.useEffect(() => {
+    let alive = true;
+    async function load() {
+      try {
+        setErr("");
+        const r = await fetch(`/api/governance.json?opId=${DRILL_OP_ID}`);
+        const j = await r.json();
+        if (!alive) return;
+        setData(j.timelockStatus || null);
+      } catch (e: any) {
+        if (!alive) return;
+        setErr(String(e?.message || e));
+      }
+    }
+    load();
+    const t = setInterval(load, 15000);
+    return () => { alive = false; clearInterval(t); };
+  }, []);
+
+  if (err) return <p>RPC error: {err}</p>;
+  if (!data) return <p>Loading…</p>;
+  if (data.error) return <p>RPC error: {data.error}</p>;
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      <p>Pending: <b>{String(data.pending)}</b> • Ready: <b>{String(data.ready)}</b> • Done: <b>{String(data.done)}</b></p>
+      <p>Time left: <b>{formatLeft(data.secondsLeft)}</b></p>
+      <p style={{ opacity: 0.7, marginTop: 6, fontSize: 12 }}>OP_ID: <code>{data.opId}</code></p>
+    </div>
+  );
+}

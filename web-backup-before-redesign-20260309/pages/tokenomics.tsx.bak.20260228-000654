@@ -1,0 +1,193 @@
+import React from "react";
+
+const NBCX = "0xBa73385776f5A2D3F5D199bB2D0bA20704A7895a";
+const STAKING = "0x4b941e43989D24086C9CaFd1d91c78ac6C25214F";
+const LOCK = "0xB9B5d2218035ED91451DfEf6E6894036fFd247B1";
+
+function cardStyle(): React.CSSProperties {
+  return {
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.06)",
+    borderRadius: 14,
+    padding: 16,
+    boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+    backdropFilter: "blur(10px)",
+  };
+}
+
+function pillStyle(): React.CSSProperties {
+  return {
+    display: "inline-flex",
+    gap: 10,
+    alignItems: "center",
+    padding: "10px 12px",
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(0,0,0,0.18)",
+    color: "rgba(255,255,255,0.92)",
+    textDecoration: "none",
+  };
+}
+
+function mono(): React.CSSProperties {
+  return {
+    fontFamily:
+      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+    fontSize: 13,
+    wordBreak: "break-word",
+  };
+}
+
+function label(): React.CSSProperties {
+  return { opacity: 0.75, fontSize: 12, letterSpacing: 1.1, textTransform: "uppercase" };
+}
+
+export default function Tokenomics() {
+  // IMPORTANT: replace these when you finalize economics
+  const supplyCap = "TBD";
+  const initialCirculating = "TBD";
+  const emissions = "On-chain adjustable (rewardRate)";
+  const stakingRewards = "Emission-based";
+  const fees = "TBD";
+
+  const lastUpdated = new Date().toISOString().slice(0, 10);
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        color: "rgba(255,255,255,0.92)",
+        background:
+          "radial-gradient(1200px 600px at 20% 10%, rgba(255,215,0,0.18), transparent 60%)," +
+          "radial-gradient(900px 500px at 80% 20%, rgba(120,160,255,0.18), transparent 60%)," +
+          "linear-gradient(180deg, #070A12, #05060B 55%, #04040A)",
+      }}
+    >
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 18px 60px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <a href="/" style={pillStyle()}>
+            ← Home
+          </a>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <a href="/staking" style={pillStyle()}>Staking</a>
+            <a href="/wallet" style={pillStyle()}>Wallet</a>
+            <a href="/transparency" style={pillStyle()}>Transparency</a>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 22 }}>
+          <div style={{ opacity: 0.85, fontSize: 12, letterSpacing: 1.2, textTransform: "uppercase" }}>
+            Northbridge Chain • Tokenomics
+          </div>
+          <h1 style={{ margin: "10px 0 10px", fontSize: 44, lineHeight: 1.06 }}>
+            Simple. Verifiable. On-chain.
+          </h1>
+          <div style={{ opacity: 0.82, maxWidth: 900 }}>
+            Token economics are designed to be readable by humans and enforceable by contracts. Where values are “TBD”,
+            we’ll replace them once finalized and publish a change log.
+          </div>
+        </div>
+
+        <div
+          style={{
+            marginTop: 18,
+            display: "grid",
+            gap: 14,
+            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+          }}
+        >
+          <div style={cardStyle()}>
+            <div style={label()}>Supply</div>
+            <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+              <div><b>Cap:</b> {supplyCap}</div>
+              <div><b>Initial circulating:</b> {initialCirculating}</div>
+              <div><b>Fees:</b> {fees}</div>
+              <div style={{ opacity: 0.8, fontSize: 13 }}>
+                Final numbers will be published alongside a whitepaper update.
+              </div>
+            </div>
+          </div>
+
+          <div style={cardStyle()}>
+            <div style={label()}>Staking Rewards</div>
+            <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+              <div><b>Model:</b> {stakingRewards}</div>
+              <div><b>Emissions:</b> {emissions}</div>
+              <div style={{ opacity: 0.8, fontSize: 13 }}>
+                Rewards are earned by staking and are visible on the staking dashboard.
+              </div>
+            </div>
+          </div>
+
+          <div style={cardStyle()}>
+            <div style={label()}>Governance & Control</div>
+            <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+              <div><b>Admin:</b> Multisig recommended</div>
+              <div><b>Policy:</b> Publish changes before execution</div>
+              <div><b>Last updated:</b> {lastUpdated}</div>
+              <div style={{ opacity: 0.8, fontSize: 13 }}>
+                See <a href="/transparency" style={{ color: "rgba(255,215,0,0.95)" }}>Transparency</a> for details.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 16, ...cardStyle() }}>
+          <div style={label()}>Contracts</div>
+
+          <div style={{ marginTop: 12, display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+            <div style={cardStyle()}>
+              <div style={{ opacity: 0.85 }}>NBCX Token</div>
+              <div style={{ marginTop: 10 }}>
+                <div><b>Address:</b> <span style={mono()}>{NBCX}</span></div>
+              </div>
+            </div>
+
+            <div style={cardStyle()}>
+              <div style={{ opacity: 0.85 }}>Staking</div>
+              <div style={{ marginTop: 10 }}>
+                <div><b>Address:</b> <span style={mono()}>{STAKING}</span></div>
+              </div>
+            </div>
+
+            <div style={cardStyle()}>
+              <div style={{ opacity: 0.85 }}>Lock / Vault</div>
+              <div style={{ marginTop: 10 }}>
+                <div><b>Address:</b> <span style={mono()}>{LOCK}</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 14, opacity: 0.85 }}>
+            Verify contract addresses and ownership on the <a href="/contracts" style={{ color: "rgba(255,215,0,0.95)" }}>Contracts</a> page.
+          </div>
+        </div>
+
+        <div style={{ marginTop: 16, display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+          <div style={cardStyle()}>
+            <div style={label()}>What we’ll add</div>
+            <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+              <div>• Final supply schedule</div>
+              <div>• Allocation breakdown (if any)</div>
+              <div>• Emissions change policy</div>
+              <div>• Fee mechanics (if applicable)</div>
+            </div>
+          </div>
+
+          <div style={cardStyle()}>
+            <div style={label()}>User paths</div>
+            <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+              <div>• Stake and track rewards: <a href="/staking" style={{ color: "rgba(255,215,0,0.95)" }}>/staking</a></div>
+              <div>• Check any address: <a href="/wallet" style={{ color: "rgba(255,215,0,0.95)" }}>/wallet</a></div>
+              <div>• Search blocks/tx: <a href="/explorer" style={{ color: "rgba(255,215,0,0.95)" }}>/explorer</a></div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 18, opacity: 0.7, fontSize: 12 }}>
+          © {new Date().getFullYear()} Northbridge Chain • Tokenomics may change before mainnet.
+        </div>
+      </div>
+    </div>
+  );
+}

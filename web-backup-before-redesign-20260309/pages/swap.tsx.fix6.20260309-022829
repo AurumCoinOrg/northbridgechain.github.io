@@ -1,0 +1,600 @@
+import Head from "next/head";
+import { useEffect, useMemo, useState } from "react";
+import { ethers } from "ethers";
+
+
+const CHAIN_ID_HEX = "0x2328";
+const RPC_URL =
+  (typeof window !== "undefined" ? window.location.origin : "https://northbridgechain.com") + "/api/rpc";
+
+const ROUTER = "0x55d7E0a93faC96183B71C7e45621cD63bbD4bE7D";
+
+const ERC20_ABI = [
+  "function balanceOf(address owner) view returns (uint256)",
+  "function allowance(address owner,address spender) view returns (uint256)",
+  "function approve(address spender,uint256 amount) returns (bool)"
+];
+
+const ROUTER_ABI = [
+  "function getAmountsOut(uint amountIn, address[] memory path) view returns (uint[] memory amounts)",
+  "function swapExactTokensForTokens(uint amountIn,uint amountOutMin,address[] calldata path,address to,uint deadline) returns (uint[] memory amounts)"
+];
+
+const WRAPPED_ABI = [
+  "function balanceOf(address owner) view returns (uint256)",
+  "function allowance(address owner,address spender) view returns (uint256)",
+  "function approve(address spender,uint256 amount) returns (bool)",
+  "function deposit() payable"
+];
+
+const PAIR_ABI = [
+  "function getReserves() view returns (uint112 reserve0,uint112 reserve1,uint32 blockTimestampLast)",
+  "function token0() view returns (address)",
+  "function token1() view returns (address)"
+];
+
+declare global {
+  interface Window {
+    ethereum?: any;
+  }
+}
+
+function fmt(x: bigint, decimals = 18, maxFrac = 6) {
+  const s = ethers.formatUnits(x, decimals);
+  const [w, f = ""] = s.split(".");
+  const cut = f.slice(0, maxFrac).replace(/0+$/, "");
+  return cut ? `${w}.${cut}` : w;
+}
+
+function short(x: string) {
+  return x.slice(0, 10) + "…" + x.slice(-8);
+}
+
+function errMsg(e: any) {
+  return e?.shortMessage || e?.reason || e?.message || "Transaction failed";
+}
+
+const DEFAULT_PAIR = {
+  name: "NBCX / WNBCX",
+  pair: "0xcd55F87AF066f654BA12384DEBf6CE477ee28518",
+  tokenA: {
+    symbol: "NBCX",
+    address: "0x09fbf5662DbF33B0ea3D56a3Fdc8cD1936c3c196"
+  },
+  tokenB: {
+    symbol: "WNBCX",
+    address: "0xb4E91c043F1166aB33653ADbE316C7a6423Cb723"
+  }
+};
+
+function isWrappedSymbol(symbol: string) {
+  const s = String(symbol || "").toUpperCase();
+  return s.includes("WNBCX") || s.startsWith("W");
+}
+
+export default function SwapPage() {
+  const [pairAddress,setPairAddress]=useState(DEFAULT_PAIR.pair)
+  const [pairMeta,setPairMeta]=useState<any>(DEFAULT_PAIR)
+  const [pairList, setPairList] = useState<any[]>([DEFAULT_PAIR]);
+  const [account, setAccount] = useState("");
+  const [connected, setConnected] = useState(false);
+  const [inToken, setInToken] = useState(DEFAULT_PAIR.tokenA.address);
+  const [outToken, setOutToken] = useState(DEFAULT_PAIR.tokenB.address);
+  const [amountIn, setAmountIn] = useState("0.001");
+  const [quoteOut, setQuoteOut] = useState("");
+  const [status, setStatus] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [needApprove, setNeedApprove] = useState(false);
+  const [balances, setBalances] = useState<Record<string, string>>({});
+  const [allowances, setAllowances] = useState<Record<string, string>>({});
+  const [reserveA, setReserveA] = useState("-");
+  const [reserveB, setReserveB] = useState("-");
+
+  const readProvider = useMemo(() => new ethers.JsonRpcProvider(RPC_URL), []);
+
+  useEffect(() => {
+
+useEffect(()=>{
+
+async function load(){
+
+const r = await fetch("/api/pairs")
+const pairs = await r.json()
+
+setPairList(pairs)
+
+if(pairs.length){
+
+setPairAddress(pairs[0].pair)
+
+setPairMeta({
+pair:pairs[0].pair,
+tokenA:{address:pairs[0].token0,symbol:"TOKEN0"},
+tokenB:{address:pairs[0].token1,symbol:"TOKEN1"}
+})
+
+}
+
+}
+
+load()
+
+},[])
+
+
+    const meta = pairMeta;
+    if (!meta) return;
+    setInToken(meta.tokenA.address);
+    setOutToken(meta.tokenB.address);
+    setQuoteOut("");
+  }, [pairAddress]);
+
+  async function refreshWallet(addr?: string, meta?: typeof pairMeta) {
+    const active = addr || account;
+    const current = meta || pairMeta;
+    if (!active) return;
+
+    try {
+      const nextBalances: Record<string, string> = {};
+      const nextAllowances: Record<string, string> = {};
+
+      for (const token of [current.tokenA, current.tokenB]) {
+        const abi = isWrappedSymbol(token.symbol) ? WRAPPED_ABI : ERC20_ABI;
+        const c = new ethers.Contract(token.address, abi, readProvider);
+        const [bal, allow] = await Promise.all([
+          c.balanceOf(active),
+          c.allowance(active, ROUTER)
+        ]);
+        nextBalances[token.address.toLowerCase()] = fmt(bal, 18, 6);
+        nextAllowances[token.address.toLowerCase()] = fmt(allow, 18, 6);
+      }
+
+      setBalances(nextBalances);
+      setAllowances(nextAllowances);
+    } catch {}
+  }
+
+  async function refreshPool(meta?: typeof pairMeta) {
+    const current = meta || pairMeta;
+
+    try {
+      const pair = new ethers.Contract(current.pair, PAIR_ABI, readProvider);
+      const [token0, token1, reserves] = await Promise.all([
+        pair.token0(),
+        pair.token1(),
+        pair.getReserves()
+      ]);
+
+      const r0 = fmt(reserves[0], 18, 6);
+      const r1 = fmt(reserves[1], 18, 6);
+
+      if (String(token0).toLowerCase() === current.tokenA.address.toLowerCase()) {
+        setReserveA(`${r0} ${current.tokenA.symbol}`);
+        setReserveB(`${r1} ${current.tokenB.symbol}`);
+      } else if (String(token1).toLowerCase() === current.tokenA.address.toLowerCase()) {
+        setReserveA(`${r1} ${current.tokenA.symbol}`);
+        setReserveB(`${r0} ${current.tokenB.symbol}`);
+      } else {
+        setReserveA(r0);
+        setReserveB(r1);
+      }
+    } catch {}
+  }
+
+  useEffect(() => {
+    refreshPool(pairMeta);
+    const t = setInterval(() => refreshPool(pairMeta), 8000);
+    return () => clearInterval(t);
+  }, [pairMeta]);
+
+  useEffect(() => {
+    if (!window.ethereum) return;
+
+    window.ethereum.request({ method: "eth_accounts" })
+      .then((accs: string[]) => {
+        if (accs?.length) {
+          setAccount(accs[0]);
+          setConnected(true);
+          refreshWallet(accs[0], pairMeta);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (connected && account) {
+      refreshWallet(account, pairMeta);
+    }
+  }, [pairMeta, connected, account]);
+
+  useEffect(() => {
+    async function loadQuote() {
+      try {
+        setQuoteOut("");
+        setNeedApprove(false);
+
+        const raw = amountIn.trim();
+        if (!raw || Number(raw) <= 0) return;
+        if (inToken.toLowerCase() === outToken.toLowerCase()) return;
+
+        const router = new ethers.Contract(ROUTER, ROUTER_ABI, readProvider);
+        const amountParsed = ethers.parseUnits(raw, 18);
+        const out = await router.getAmountsOut(amountParsed, [inToken, outToken]);
+
+        setQuoteOut(fmt(out[1], 18, 12));
+
+        if (connected && account) {
+          const allowStr = allowances[inToken.toLowerCase()] || "0";
+          const allow = ethers.parseUnits(allowStr, 18);
+          setNeedApprove(allow < amountParsed);
+        }
+      } catch {
+        setQuoteOut("");
+      }
+    }
+
+    loadQuote();
+  }, [amountIn, inToken, outToken, connected, account, allowances, readProvider]);
+
+  async function connectWallet() {
+    if (!window.ethereum) {
+      setStatus("MetaMask not found");
+      return;
+    }
+
+    try {
+      setStatus("Connecting wallet...");
+      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+      const addr = accounts?.[0] || "";
+      if (!addr) throw new Error("No account returned");
+
+      try {
+        await window.ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: CHAIN_ID_HEX }]
+        });
+      } catch {}
+
+      setAccount(addr);
+      setConnected(true);
+      setStatus("Wallet connected");
+      await refreshWallet(addr, pairMeta);
+    } catch (e: any) {
+      setStatus(errMsg(e));
+    }
+  }
+
+  async function approveToken() {
+    if (!window.ethereum || !account) return;
+
+    try {
+      setBusy(true);
+      setStatus("Preparing approval...");
+
+      const browserProvider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await browserProvider.getSigner();
+      const abi = isWrappedSymbol(inMeta.symbol) ? WRAPPED_ABI : ERC20_ABI;
+      const token = new ethers.Contract(inToken, abi, signer);
+
+      const tx = await token.approve(ROUTER, ethers.MaxUint256);
+      setStatus("Approval submitted...");
+      await tx.wait();
+
+      setStatus("Approval confirmed");
+      await refreshWallet();
+      setNeedApprove(false);
+    } catch (e: any) {
+      setStatus(errMsg(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function wrapNative() {
+    if (!window.ethereum || !account) return;
+
+    try {
+      setBusy(true);
+      setStatus("Wrapping native...");
+      const browserProvider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await browserProvider.getSigner();
+      const wrapped = new ethers.Contract(inToken, WRAPPED_ABI, signer);
+
+      const value = ethers.parseUnits(amountIn || "0", 18);
+      const tx = await wrapped.deposit({ value });
+      await tx.wait();
+
+      setStatus("Wrapped successfully");
+      await refreshWallet();
+    } catch (e: any) {
+      setStatus(errMsg(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function swapNow() {
+    if (!window.ethereum || !account) return;
+
+    try {
+      setBusy(true);
+      setStatus("Preparing swap...");
+
+      const raw = amountIn.trim();
+      if (!raw || Number(raw) <= 0) throw new Error("Enter amount");
+      if (inToken.toLowerCase() === outToken.toLowerCase()) throw new Error("Choose different tokens");
+
+      const browserProvider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await browserProvider.getSigner();
+      const router = new ethers.Contract(ROUTER, ROUTER_ABI, signer);
+
+      const parsedIn = ethers.parseUnits(raw, 18);
+      const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
+
+      const tx = await router.swapExactTokensForTokens(
+        parsedIn,
+        0,
+        [inToken, outToken],
+        account,
+        deadline
+      );
+
+      setStatus("Swap submitted...");
+      await tx.wait();
+
+      setStatus("Swap confirmed");
+      await refreshWallet();
+      await refreshPool();
+    } catch (e: any) {
+      setStatus(errMsg(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function flipTokens() {
+    setInToken(outToken);
+    setOutToken(inToken);
+    setQuoteOut("");
+  }
+
+  const tokenOptions = [pairMeta.tokenA, pairMeta.tokenB];
+  const inMeta = tokenOptions.find((t) => t.address.toLowerCase() === inToken.toLowerCase()) || pairMeta.tokenA;
+  const outMeta = tokenOptions.find((t) => t.address.toLowerCase() === outToken.toLowerCase()) || pairMeta.tokenB;
+
+  return (
+    <>
+      <Head>
+        <title>Swap</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </Head>
+
+      <main style={{ maxWidth: 920, margin: "40px auto", padding: 20 }}>
+        <h1 style={{ marginBottom: 8 }}>Swap</h1>
+        <div style={{ opacity: 0.72, marginBottom: 20 }}>
+          Multi-pair Northbridge DEX swap UI
+        </div>
+
+        <div style={{ ...shell(), marginBottom: 18 }}>
+          <div style={label()}>Selected Pair</div>
+          <select value={pairAddress} onChange={(e) => setPairAddress(e.target.value)} style={selectStyle()}>
+            {pairList.map((x) => (
+              <option key={x.pair} value={x.pair}>{x.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 14, marginBottom: 18 }}>
+          <div style={card()}>
+            <div style={label()}>Pool</div>
+            <div style={value()}>{pairMeta.pair}</div>
+          </div>
+          <div style={card()}>
+            <div style={label()}>Reserve</div>
+            <div style={value()}>{reserveA}</div>
+          </div>
+          <div style={card()}>
+            <div style={label()}>Reserve</div>
+            <div style={value()}>{reserveB}</div>
+          </div>
+        </div>
+
+        <div style={shell()}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+            <div style={{ fontSize: 14, opacity: 0.78 }}>
+              {connected ? `Connected: ${account}` : "Wallet not connected"}
+            </div>
+
+            {!connected ? (
+              <button onClick={connectWallet} style={btnPrimary()} disabled={busy}>
+                Connect Wallet
+              </button>
+            ) : null}
+          </div>
+
+          <div style={{ marginTop: 22 }}>
+            <div style={label()}>From</div>
+            <div style={swapBox()}>
+              <input
+                value={amountIn}
+                onChange={(e) => setAmountIn(e.target.value)}
+                placeholder="0.0"
+                style={inputStyle()}
+              />
+              <select value={inToken} onChange={(e) => setInToken(e.target.value)} style={selectStyle()}>
+                {tokenOptions.map((t) => (
+                  <option key={t.address} value={t.address}>{t.symbol}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ marginTop: 8, fontSize: 13, opacity: 0.72 }}>
+              Balance: {balances[inToken.toLowerCase()] || "0"} {inMeta.symbol}
+            </div>
+          </div>
+
+          <div style={{ marginTop: 12, textAlign: "center" }}>
+            <button onClick={flipTokens} style={btnGhost()} disabled={busy}>
+              ⇅ Flip
+            </button>
+          </div>
+
+          <div style={{ marginTop: 12 }}>
+            <div style={label()}>To</div>
+            <div style={swapBox()}>
+              <input
+                value={quoteOut}
+                readOnly
+                placeholder="Quoted output"
+                style={{ ...inputStyle(), opacity: 0.92 }}
+              />
+              <select value={outToken} onChange={(e) => setOutToken(e.target.value)} style={selectStyle()}>
+                {tokenOptions.map((t) => (
+                  <option key={t.address} value={t.address}>{t.symbol}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ marginTop: 8, fontSize: 13, opacity: 0.72 }}>
+              Balance: {balances[outToken.toLowerCase()] || "0"} {outMeta.symbol}
+            </div>
+          </div>
+
+          <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12 }}>
+            {tokenOptions.map((t) => (
+              <div key={t.address} style={miniCard()}>
+                <div style={label()}>{t.symbol}</div>
+                <div style={value()}>{balances[t.address.toLowerCase()] || "0"}</div>
+                <div style={{ marginTop: 8, fontSize: 12, opacity: 0.72 }}>{short(t.address)}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 18, display: "flex", gap: 12, flexWrap: "wrap" }}>
+            {connected && isWrappedSymbol(inMeta.symbol) ? (
+              <button onClick={wrapNative} style={btnGhost()} disabled={busy}>
+                Wrap Native → {inMeta.symbol}
+              </button>
+            ) : null}
+
+            {connected && needApprove ? (
+              <button onClick={approveToken} style={btnPrimary()} disabled={busy}>
+                Approve {inMeta.symbol}
+              </button>
+            ) : null}
+
+            <button onClick={swapNow} style={btnPrimary()} disabled={busy || !connected || !amountIn || !quoteOut}>
+              Swap {inMeta.symbol} → {outMeta.symbol}
+            </button>
+          </div>
+
+          <div style={{ marginTop: 18, padding: "12px 14px", borderRadius: 12, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <div style={label()}>Status</div>
+            <div style={{ fontSize: 14 }}>{status || "Ready"}</div>
+          </div>
+        </div>
+      </main>
+    </>
+  );
+}
+
+function shell(): React.CSSProperties {
+  return {
+    borderRadius: 20,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.03)",
+    padding: 20
+  };
+}
+
+function card(): React.CSSProperties {
+  return {
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.03)",
+    padding: 16
+  };
+}
+
+function miniCard(): React.CSSProperties {
+  return {
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.025)",
+    padding: 14
+  };
+}
+
+function swapBox(): React.CSSProperties {
+  return {
+    display: "grid",
+    gridTemplateColumns: "1fr 160px",
+    gap: 10,
+    alignItems: "center"
+  };
+}
+
+function label(): React.CSSProperties {
+  return {
+    fontSize: 13,
+    opacity: 0.72,
+    marginBottom: 8
+  };
+}
+
+function value(): React.CSSProperties {
+  return {
+    fontSize: 16,
+    fontWeight: 700,
+    overflowWrap: "anywhere",
+    wordBreak: "break-word"
+  };
+}
+
+function inputStyle(): React.CSSProperties {
+  return {
+    width: "100%",
+    padding: "14px 16px",
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.05)",
+    color: "white",
+    fontSize: 18,
+    outline: "none"
+  };
+}
+
+function selectStyle(): React.CSSProperties {
+  return {
+    width: "100%",
+    padding: "14px 16px",
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.05)",
+    color: "white",
+    fontSize: 16,
+    outline: "none"
+  };
+}
+
+function btnPrimary(): React.CSSProperties {
+  return {
+    padding: "12px 16px",
+    borderRadius: 14,
+    border: "1px solid rgba(120,170,255,0.45)",
+    background: "rgba(60,100,220,0.22)",
+    color: "white",
+    fontWeight: 800,
+    cursor: "pointer"
+  };
+}
+
+function btnGhost(): React.CSSProperties {
+  return {
+    padding: "12px 16px",
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.05)",
+    color: "white",
+    fontWeight: 700,
+    cursor: "pointer"
+  };
+}

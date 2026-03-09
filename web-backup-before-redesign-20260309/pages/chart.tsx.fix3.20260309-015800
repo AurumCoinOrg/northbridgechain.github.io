@@ -1,0 +1,126 @@
+import Head from "next/head";
+import { useEffect, useRef, useState } from "react";
+import { ethers } from "ethers";
+import { createChart } from "lightweight-charts";
+import { DEX_PAIRS } from "../lib/dexPairs";
+
+const RPC_URL = "https://northbridgechain.com/api/rpc";
+
+const PAIR_ABI = [
+"event Swap(address indexed sender,uint amount0In,uint amount1In,uint amount0Out,uint amount1Out,address indexed to)",
+"function getReserves() view returns (uint112 reserve0,uint112 reserve1,uint32 blockTimestampLast)",
+"function token0() view returns (address)",
+"function token1() view returns (address)"
+];
+
+export default function ChartPage(){
+
+const chartRef = useRef(null)
+const [pair,setPair] = useState(DEX_PAIRS[0])
+
+async function loadChart(){
+
+const provider = new ethers.JsonRpcProvider(RPC_URL)
+
+const pairContract = new ethers.Contract(pair.pair,PAIR_ABI,provider)
+
+const latest = await provider.getBlockNumber()
+const fromBlock = latest - 8000
+
+const rawLogs = await pairContract.queryFilter(pairContract.filters.Swap(),fromBlock,latest)
+const logs: any[] = rawLogs as any[]
+
+let candles = []
+
+for (const log of logs) {
+
+let block = await provider.getBlock(log.blockNumber)
+
+let price = 0
+
+const a0in = Number(ethers.formatUnits(log.args.amount0In,18))
+const a1in = Number(ethers.formatUnits(log.args.amount1In,18))
+const a0out = Number(ethers.formatUnits(log.args.amount0Out,18))
+const a1out = Number(ethers.formatUnits(log.args.amount1Out,18))
+
+if(a0in>0 && a1out>0) price = a1out/a0in
+if(a1in>0 && a0out>0) price = a1in/a0out
+
+if(price>0){
+candles.push({
+time: block.timestamp,
+value: price
+})
+}
+
+}
+
+renderChart(candles)
+
+}
+
+function renderChart(data){
+
+if(!chartRef.current) return
+
+chartRef.current.innerHTML=""
+
+const chart = createChart(chartRef.current,{
+layout:{
+background:{color:"#0b0b0f"},
+textColor:"#d1d5db"
+},
+grid:{
+vertLines:{color:"#1f2937"},
+horzLines:{color:"#1f2937"}
+},
+width:900,
+height:500
+})
+
+const lineSeries = chart.addLineSeries({
+color:"#3b82f6",
+lineWidth:2
+})
+
+lineSeries.setData(data)
+
+}
+
+useEffect(()=>{
+loadChart()
+},[pair])
+
+return(
+<>
+<Head>
+<title>DEX Chart</title>
+</Head>
+
+<div style={{maxWidth:1000,margin:"40px auto"}}>
+
+<h1>Northbridge DEX Chart</h1>
+
+<select
+value={pair.pair}
+onChange={e=>{
+const p=DEX_PAIRS.find(x=>x.pair===e.target.value)
+setPair(p)
+}}
+>
+
+{DEX_PAIRS.map(p=>(
+<option key={p.pair} value={p.pair}>
+{p.name}
+</option>
+))}
+
+</select>
+
+<div ref={chartRef} style={{marginTop:30}}/>
+
+</div>
+</>
+)
+
+}

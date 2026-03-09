@@ -1,0 +1,214 @@
+import React, { useMemo, useState } from "react";
+
+const RPC_HTTP = "https://northbridgechain.com/api/rpc";
+
+// Contracts (prod)
+const NBCX = "0xBa73385776f5A2D3F5D199bB2D0bA20704A7895a";
+const STAKING = "0x4b941e43989D24086C9CaFd1d91c78ac6C25214F";
+const LOCK = "0xB9B5d2218035ED91451DfEf6E6894036fFd247B1";
+
+// If you have a multisig address, set it here (or leave "-")
+const MULTISIG = "-";
+
+function cardStyle(): React.CSSProperties {
+  return {
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.06)",
+    borderRadius: 14,
+    padding: 16,
+    boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+    backdropFilter: "blur(10px)",
+  };
+}
+
+function pillStyle(): React.CSSProperties {
+  return {
+    display: "inline-flex",
+    gap: 10,
+    alignItems: "center",
+    padding: "10px 12px",
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(0,0,0,0.18)",
+    color: "rgba(255,255,255,0.92)",
+    textDecoration: "none",
+  };
+}
+
+function mono(): React.CSSProperties {
+  return {
+    fontFamily:
+      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+    fontSize: 13,
+    opacity: 0.92,
+  };
+}
+
+function short(addr: string) {
+  if (!addr || addr === "-") return addr;
+  return addr.slice(0, 6) + "…" + addr.slice(-4);
+}
+
+async function rpc(method: string, params: any[] = []) {
+  const r = await fetch(RPC_HTTP, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+  });
+  if (!r.ok) throw new Error(`RPC ${r.status}`);
+  return r.json();
+}
+
+export default function Transparency() {
+  const [rpcStatus, setRpcStatus] = useState<string>("idle");
+  const [rpcDetail, setRpcDetail] = useState<string>("");
+
+  const explorer = useMemo(() => {
+    return (path: string) => `/explorer${path}`;
+  }, []);
+
+  async function checkRpc() {
+    setRpcStatus("checking");
+    setRpcDetail("");
+    try {
+      const j = await rpc("eth_chainId");
+      const chainIdHex = j?.result || "";
+      setRpcStatus("ok");
+      setRpcDetail(`eth_chainId = ${chainIdHex}`);
+    } catch (e: any) {
+      setRpcStatus("down");
+      setRpcDetail(e?.message || String(e));
+    }
+  }
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        color: "rgba(255,255,255,0.92)",
+        background:
+          "radial-gradient(1200px 600px at 20% 10%, rgba(255,215,0,0.18), transparent 60%)," +
+          "radial-gradient(900px 500px at 80% 20%, rgba(120,160,255,0.18), transparent 60%)," +
+          "linear-gradient(180deg, #070A12, #05060B 55%, #04040A)",
+      }}
+    >
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 18px 60px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <a href="/" style={pillStyle()}>
+            ← Home
+          </a>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <a href="/wallet" style={pillStyle()}>Wallet</a>
+            <a href="/staking" style={pillStyle()}>Staking</a>
+            <a href="/contracts" style={pillStyle()}>Contracts</a>
+            <a href="/explorer" style={pillStyle()}>Explorer Lite</a>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 22 }}>
+          <div style={{ opacity: 0.85, fontSize: 12, letterSpacing: 1.2, textTransform: "uppercase" }}>
+            Northbridge Chain • Transparency
+          </div>
+
+          <h1 style={{ margin: "10px 0 10px", fontSize: 40, lineHeight: 1.1 }}>
+            Verify everything.
+          </h1>
+
+          <div style={{ opacity: 0.82, maxWidth: 900 }}>
+            This page is the single source of truth for live addresses, governance, and what can be changed.
+            If something is adjustable, it’s listed here.
+          </div>
+        </div>
+
+        <div style={{ marginTop: 18, display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+          <div style={cardStyle()}>
+            <div style={{ fontSize: 14, opacity: 0.85 }}>RPC Health</div>
+            <div style={{ marginTop: 8, ...mono() }}>{RPC_HTTP}</div>
+            <div style={{ marginTop: 10, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <button
+                onClick={checkRpc}
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  border: "1px solid rgba(255,255,255,0.16)",
+                  background: "rgba(255,215,0,0.18)",
+                  color: "rgba(255,255,255,0.92)",
+                  cursor: "pointer",
+                }}
+              >
+                Check RPC
+              </button>
+              <span style={{ opacity: 0.85 }}>
+                Status: <b>{rpcStatus}</b>
+              </span>
+            </div>
+            {rpcDetail && <div style={{ marginTop: 10, ...mono(), opacity: 0.85 }}>{rpcDetail}</div>}
+          </div>
+
+          <div style={cardStyle()}>
+            <div style={{ fontSize: 14, opacity: 0.85 }}>Governance</div>
+            <div style={{ marginTop: 10 }}>
+              <div><b>Multisig:</b> <span style={mono()}>{MULTISIG}</span></div>
+              <div style={{ marginTop: 8, opacity: 0.82 }}>
+                Admin controls should be held by a multisig (not an EOA). If MULTISIG is “-”, set it when ready.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 12, ...cardStyle() }}>
+          <h2 style={{ marginTop: 0 }}>Live Addresses</h2>
+
+          <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+            <div style={cardStyle()}>
+              <div style={{ opacity: 0.85 }}>NBCX Token</div>
+              <div style={{ marginTop: 6, ...mono() }}>{NBCX}</div>
+              <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <a href={explorer(`?addr=${NBCX}`)} style={pillStyle()}>Open in Explorer</a>
+              </div>
+            </div>
+
+            <div style={cardStyle()}>
+              <div style={{ opacity: 0.85 }}>Staking Contract</div>
+              <div style={{ marginTop: 6, ...mono() }}>{STAKING}</div>
+              <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <a href={explorer(`?addr=${STAKING}`)} style={pillStyle()}>Open in Explorer</a>
+                <a href={`/wallet?addr=${STAKING}`} style={pillStyle()}>View Read-only</a>
+              </div>
+            </div>
+
+            <div style={cardStyle()}>
+              <div style={{ opacity: 0.85 }}>Lock / Vault</div>
+              <div style={{ marginTop: 6, ...mono() }}>{LOCK}</div>
+              <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <a href={explorer(`?addr=${LOCK}`)} style={pillStyle()}>Open in Explorer</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 12, ...cardStyle() }}>
+          <h2 style={{ marginTop: 0 }}>What’s Adjustable</h2>
+          <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6, opacity: 0.9 }}>
+            <li><b>Emissions / reward rate</b> (staking contract parameter) — governance controlled.</li>
+            <li><b>Staking enable/disable</b> (if implemented on-chain) — governance controlled.</li>
+            <li><b>Front-end UI</b> — can change any time; contract addresses are listed above to verify.</li>
+          </ul>
+        </div>
+
+        <div style={{ marginTop: 12, ...cardStyle() }}>
+          <h2 style={{ marginTop: 0 }}>How to Verify</h2>
+          <ol style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6, opacity: 0.9 }}>
+            <li>Use <b>Explorer Lite</b> to search any address and view basic chain data.</li>
+            <li>Use <b>Wallet (Read-only)</b> to check NBCX balance, staked, and earned for any address.</li>
+            <li>Confirm your wallet is on <b>ChainId 9000</b> in the staking dashboard.</li>
+          </ol>
+        </div>
+
+        <div style={{ marginTop: 16, opacity: 0.75, fontSize: 13 }}>
+          © 2026 Northbridge Chain • Transparency is a product feature.
+        </div>
+      </div>
+    </div>
+  );
+}

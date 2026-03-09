@@ -1,0 +1,148 @@
+import Head from "next/head";
+import { useEffect, useState } from "react";
+import { PUBLIC_RPC } from "../lib/publicRpc";
+
+const TRANSFER_TOPIC =
+"0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+
+async function rpc(method:string,params:any[]){
+  const r = await fetch(PUBLIC_RPC,{
+    method:"POST",
+    headers:{'content-type':'application/json'},
+    body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})
+  });
+  const j = await r.json();
+  return j.result;
+}
+
+function hexToInt(h:string){
+  return parseInt(h,16);
+}
+
+function shortAddr(x:string){
+  return x.slice(0,8)+"…"+x.slice(-6);
+}
+
+export default function Tokens(){
+
+  const [tokens,setTokens] = useState<any[]>([]);
+  const [loading,setLoading] = useState(true);
+
+  useEffect(()=>{
+
+    async function load(){
+
+      const latestHex = await rpc("eth_blockNumber",[]);
+      const latest = hexToInt(latestHex);
+
+      const fromBlock = "0x"+(latest-10000).toString(16);
+
+      const logs = await rpc("eth_getLogs",[{
+        fromBlock,
+        toBlock:"latest",
+        topics:[TRANSFER_TOPIC]
+      }]);
+
+      const addresses = new Set<string>();
+
+      for(const log of logs){
+        if(log.address){
+          addresses.add(log.address.toLowerCase());
+        }
+      }
+
+      const rows:any[]=[];
+
+      for(const addr of addresses){
+
+        try{
+
+          const name = await rpc("eth_call",[{
+            to:addr,
+            data:"0x06fdde03"
+          },"latest"]);
+
+          const symbol = await rpc("eth_call",[{
+            to:addr,
+            data:"0x95d89b41"
+          },"latest"]);
+
+          const supply = await rpc("eth_call",[{
+            to:addr,
+            data:"0x18160ddd"
+          },"latest"]);
+
+          rows.push({
+            address:addr,
+            name:name||"-",
+            symbol:symbol||"-",
+            supply:hexToInt(supply||"0x0")
+          });
+
+        }catch{}
+
+      }
+
+      setTokens(rows);
+      setLoading(false);
+
+    }
+
+    load();
+
+  },[]);
+
+  return(
+  <>
+    <Head>
+      <title>Tokens</title>
+    </Head>
+
+    <main style={{maxWidth:1100,margin:"40px auto",padding:20}}>
+
+      <h1>Tokens</h1>
+
+      <table style={{width:"100%",marginTop:30}}>
+
+        <thead>
+          <tr>
+            <th>Token</th>
+            <th>Symbol</th>
+            <th>Supply</th>
+            <th>Contract</th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+        {loading ? (
+          <tr>
+            <td colSpan={4}>Scanning chain...</td>
+          </tr>
+        ) : tokens.map((t,i)=>(
+          <tr key={i}>
+
+            <td>{t.name}</td>
+
+            <td>{t.symbol}</td>
+
+            <td>{t.supply}</td>
+
+            <td>
+              <a href={"/token/"+t.address}>
+                {shortAddr(t.address)}
+              </a>
+            </td>
+
+          </tr>
+        ))}
+
+        </tbody>
+
+      </table>
+
+    </main>
+  </>
+  );
+
+}

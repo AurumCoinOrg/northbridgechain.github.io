@@ -1,0 +1,163 @@
+import React from "react";
+
+// If you want to change numbers later, only edit these constants:
+const TOKEN_NAME = "Northbridge Token";
+const TOKEN_SYMBOL = "NBCX";
+
+// Supply + core concepts (tweak if needed)
+const MAX_SUPPLY = "94,000,000";
+const DECIMALS = "18";
+const NETWORK = "Northbridge Chain (EVM)";
+const CHAIN_ID = "9000";
+
+// Replace when you have final multisig:
+const MULTISIG = "-";
+
+function cardStyle(): React.CSSProperties {
+  return {
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.06)",
+    borderRadius: 14,
+    padding: 16,
+    boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+    backdropFilter: "blur(10px)",
+  };
+}
+
+function pillStyle(): React.CSSProperties {
+  return {
+    display: "inline-flex",
+    gap: 10,
+    alignItems: "center",
+    padding: "10px 12px",
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(0,0,0,0.18)",
+    color: "rgba(255,255,255,0.92)",
+    textDecoration: "none",
+  };
+}
+
+function mono(): React.CSSProperties {
+  return {
+    fontFamily:
+      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+    fontSize: 13,
+    opacity: 0.92,
+  };
+}
+
+export default function Tokenomics() {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        color: "rgba(255,255,255,0.92)",
+        background:
+          "radial-gradient(1200px 600px at 20% 10%, rgba(255,215,0,0.18), transparent 60%)," +
+          "radial-gradient(900px 500px at 80% 20%, rgba(120,160,255,0.18), transparent 60%)," +
+          "linear-gradient(180deg, #070A12, #05060B 55%, #04040A)",
+      }}
+    >
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 18px 60px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <a href="/" style={pillStyle()}>
+            ← Home
+          </a>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <a href="/wallet" style={pillStyle()}>Wallet</a>
+            <a href="/staking" style={pillStyle()}>Staking</a>
+            <a href="/contracts" style={pillStyle()}>Contracts</a>
+            <a href="/transparency" style={pillStyle()}>Transparency</a>
+            <a href="/explorer" style={pillStyle()}>Explorer Lite</a>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 22 }}>
+          <div style={{ opacity: 0.85, fontSize: 12, letterSpacing: 1.2, textTransform: "uppercase" }}>
+            Northbridge Chain • Tokenomics
+          </div>
+
+          <h1 style={{ margin: "10px 0 10px", fontSize: 40, lineHeight: 1.1 }}>
+            Built for long-term emissions.
+          </h1>
+
+          <div style={{ opacity: 0.82, maxWidth: 900 }}>
+            Tokenomics for <b>{TOKEN_SYMBOL}</b> on <b>{NETWORK}</b>. This page focuses on what users care about:
+            supply, emissions, staking, and governance control.
+          </div>
+        </div>
+
+        <div style={{ marginTop: 18, display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+          <div style={cardStyle()}>
+            <div style={{ opacity: 0.85 }}>Token</div>
+            <div style={{ marginTop: 10 }}>
+              <div><b>Name:</b> {TOKEN_NAME}</div>
+              <div><b>Symbol:</b> {TOKEN_SYMBOL}</div>
+              <div><b>Decimals:</b> {DECIMALS}</div>
+            </div>
+          </div>
+
+          <div style={cardStyle()}>
+            <div style={{ opacity: 0.85 }}>Network</div>
+            <div style={{ marginTop: 10 }}>
+              <div><b>Chain ID:</b> {CHAIN_ID}</div>
+              <div><b>Standard:</b> EVM</div>
+              <div><b>RPC:</b> <span style={mono()}>https://northbridgechain.com/api/rpc</span></div>
+            </div>
+          </div>
+
+          <div style={cardStyle()}>
+            <div style={{ opacity: 0.85 }}>Supply</div>
+            <div style={{ marginTop: 10 }}>
+              <div><b>Max supply:</b> {MAX_SUPPLY} {TOKEN_SYMBOL}</div>
+              <div style={{ marginTop: 8, opacity: 0.82 }}>
+                Emissions are distributed over time via staking. Governance can tune reward rate.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 12, ...cardStyle() }}>
+          <h2 style={{ marginTop: 0 }}>Emissions</h2>
+          <div style={{ opacity: 0.9, lineHeight: 1.6 }}>
+            <div style={{ marginBottom: 10 }}>
+              <b>How rewards work:</b> users stake {TOKEN_SYMBOL} and earn emissions over time.
+            </div>
+            <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.7 }}>
+              <li>Reward rate is on-chain and can be adjusted by governance (multisig).</li>
+              <li>Rewards accrue continuously and can be claimed from the staking dashboard.</li>
+              <li>Front-end is just a UI; the source of truth is the contracts listed on the Contracts/Transparency pages.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 12, ...cardStyle() }}>
+          <h2 style={{ marginTop: 0 }}>Governance</h2>
+          <div style={{ opacity: 0.9, lineHeight: 1.6 }}>
+            <div><b>Controller:</b> <span style={mono()}>{MULTISIG}</span></div>
+            <div style={{ marginTop: 8, opacity: 0.82 }}>
+              Governance is intended to be a multisig (not a single wallet). When the final multisig is set,
+              this page will show it and Transparency will reflect it.
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 12, ...cardStyle() }}>
+          <h2 style={{ marginTop: 0 }}>Utility</h2>
+          <div style={{ opacity: 0.9, lineHeight: 1.6 }}>
+            <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.7 }}>
+              <li><b>Staking:</b> earn emissions, track APR signals via on-chain reward rate.</li>
+              <li><b>Network gas:</b> (if you choose) can be configured separately; token utility is staking-first.</li>
+              <li><b>Transparency:</b> contract addresses are published and verifiable via Explorer Lite.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 16, opacity: 0.75, fontSize: 13 }}>
+          © 2026 Northbridge Chain • Tokenomics is a product page, not financial advice.
+        </div>
+      </div>
+    </div>
+  );
+}

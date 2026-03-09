@@ -1,0 +1,78 @@
+import Head from "next/head";
+import { useRouter } from "next/router";
+import { useEffect, useState } from "react";
+
+function short(x:string){
+  return x.slice(0,8)+"…"+x.slice(-6);
+}
+
+export default function TokenHolders(){
+
+  const router = useRouter();
+  const { address } = router.query;
+
+  const [holders,setHolders] = useState<any[]>([]);
+
+  useEffect(()=>{
+
+    if(!router.isReady) return;
+
+    fetch("/api/richlist")
+      .then(r=>r.json())
+      .then(setHolders)
+      .catch(()=>{});
+
+  },[router.isReady]);
+
+  return(
+  <>
+    <Head>
+      <title>Token Holders</title>
+    </Head>
+
+    <main style={{maxWidth:1000,margin:"40px auto",padding:20}}>
+
+      <h1>Token Holders</h1>
+
+      <div style={{marginTop:10,opacity:0.7}}>
+        Token: {address}
+      </div>
+
+      <table style={{width:"100%",marginTop:30}}>
+
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Address</th>
+            <th>Balance</th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+          {holders.map((h,i)=>(
+            <tr key={i}>
+
+              <td>{i+1}</td>
+
+              <td>
+                <a href={"/address/"+h.addr}>
+                  {short(h.addr)}
+                </a>
+              </td>
+
+              <td>
+                {h.balance.toLocaleString()}
+              </td>
+
+            </tr>
+          ))}
+
+        </tbody>
+
+      </table>
+
+    </main>
+  </>
+  );
+}

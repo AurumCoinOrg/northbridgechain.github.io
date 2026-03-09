@@ -1,0 +1,207 @@
+import React, { useEffect, useMemo, useState } from "react";
+import { ethers } from "ethers";
+
+const RPC_URL = (typeof window !== "undefined" ? window.location.origin : "") + "/api/rpc";
+
+// NB_EXPLORER_URL_HELPERS
+function nbGetQuery() {
+  if (typeof window === "undefined") return { addr: "", tx: "", block: "" };
+  const q = new URLSearchParams(window.location.search);
+  return {
+    addr: (q.get("addr") || "").trim(),
+    tx: (q.get("tx") || "").trim(),
+    block: (q.get("block") || "").trim(),
+  };
+}
+
+function nbSetQuery(next: { addr?: string; tx?: string; block?: string }) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  const keys: Array<"addr" | "tx" | "block"> = ["addr", "tx", "block"];
+  for (const k of keys) url.searchParams.delete(k);
+  if (next.addr) url.searchParams.set("addr", next.addr);
+  if (next.tx) url.searchParams.set("tx", next.tx);
+  if (next.block) url.searchParams.set("block", next.block);
+  window.history.replaceState(null, "", url.toString());
+}
+
+function cardStyle(): React.CSSProperties {
+  return {
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.06)",
+    borderRadius: 14,
+    padding: 16,
+    boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+    backdropFilter: "blur(10px)",
+  };
+}
+
+function pillStyle(): React.CSSProperties {
+  return {
+    display: "inline-flex",
+    gap: 10,
+    alignItems: "center",
+    padding: "10px 12px",
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(0,0,0,0.18)",
+    color: "rgba(255,255,255,0.92)",
+    textDecoration: "none",
+  };
+}
+
+function mono(): React.CSSProperties {
+  return {
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace",
+    fontSize: 12,
+    opacity: 0.92,
+  };
+}
+
+export default function ExplorerLite() {
+  const [query, setQuery] = useState<string>("");
+  const [busy, setBusy] = useState<boolean>(false);
+  const [err, setErr] = useState<string>("");
+  const [result, setResult] = useState<any>(null);
+
+  const provider = useMemo(() => new ethers.JsonRpcProvider(RPC_URL), []);
+
+  // auto-load from ?addr= / ?tx= / ?block=
+  useEffect(() => {
+    const q = nbGetQuery();
+    const v = q.addr || q.tx || q.block;
+    if (!v) return;
+    setQuery(v);
+    // trigger search next tick after state is set
+    setTimeout(() => { nbSearch().catch(() => {}); }, 0);
+  }, []);
+
+  async function nbSearch() {
+    setErr("");
+    setResult(null);
+
+    const q = query.trim();
+    // update URL based on query type
+    if (ethers.isAddress(q)) nbSetQuery({ addr: q });
+    else if (/^0x[0-9a-fA-F]{64}$/.test(q)) nbSetQuery({ tx: q });
+    else if (/^\d+$/.test(q)) nbSetQuery({ block: q });
+    else nbSetQuery({});
+
+    if (!q) return;
+
+    setBusy(true);
+    try {
+      if (ethers.isAddress(q)) {
+        const [bal, nonce] = await Promise.all([provider.getBalance(q), provider.getTransactionCount(q)]);
+        setResult({ type: "address", address: q, balanceETH: ethers.formatEther(bal), txCount: nonce });
+        return;
+      }
+
+      if (/^0x[0-9a-fA-F]{64}$/.test(q)) {
+        const tx = await provider.getTransaction(q);
+        const receipt = await provider.getTransactionReceipt(q);
+        setResult({ type: "tx", hash: q, tx, receipt });
+        return;
+      }
+
+      if (/^\\d+$/.test(q)) {
+        const bn = Number(q);
+        const block = await provider.getBlock(bn, true);
+        setResult({ type: "block", number: bn, block });
+        return;
+      }
+
+      setErr("Enter an address, tx hash, or block number.");
+    } catch (e: any) {
+      setErr(e?.shortMessage || e?.message || String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        color: "rgba(255,255,255,0.92)",
+        background:
+          "radial-gradient(1200px 600px at 20% 10%, rgba(255,215,0,0.18), transparent 60%)," +
+          "radial-gradient(900px 500px at 80% 20%, rgba(120,160,255,0.18), transparent 60%)," +
+          "linear-gradient(180deg, #070A12, #05060B 55%, #04040A)",
+      }}
+    >
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 18px 60px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <a href="/" style={pillStyle()}>← Home</a>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <a href="/wallet" style={pillStyle()}>Wallet</a>
+            <a href="/staking" style={pillStyle()}>Staking</a>
+            <a href="/contracts" style={pillStyle()}>Contracts</a>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 22 }}>
+          <div style={{ opacity: 0.85, fontSize: 12, letterSpacing: 1.2, textTransform: "uppercase" }}>
+            Northbridge Chain • Explorer Lite
+          </div>
+          <h1 style={{ margin: "10px 0 10px", fontSize: 40, lineHeight: 1.1 }}>Search</h1>
+          <div style={{ opacity: 0.82, maxWidth: 820 }}>
+            Paste an <b>address</b>, <b>transaction hash</b>, or <b>block number</b>.
+          </div>
+        </div>
+
+        <div style={{ marginTop: 18, ...cardStyle() }}>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="0x… address | 0x… tx hash | 12345 block"
+              style={{
+                flex: "1 1 520px",
+                padding: "12px 12px",
+                borderRadius: 12,
+                border: "1px solid rgba(255,255,255,0.14)",
+                background: "rgba(0,0,0,0.25)",
+                color: "rgba(255,255,255,0.92)",
+                outline: "none",
+              }}
+            />
+            <button
+              onClick={nbSearch}
+              disabled={busy}
+              style={{
+                padding: "12px 14px",
+                borderRadius: 12,
+                border: "1px solid rgba(255,255,255,0.16)",
+                background: busy ? "rgba(255,255,255,0.10)" : "rgba(255,215,0,0.18)",
+                color: "rgba(255,255,255,0.92)",
+                cursor: busy ? "not-allowed" : "pointer",
+              }}
+            >
+              {busy ? "Searching…" : "Search"}
+            </button>
+          </div>
+
+          <div style={{ marginTop: 10, opacity: 0.8, fontSize: 13 }}>
+            <b>RPC:</b> <span style={mono()}>{RPC_URL}</span>
+          </div>
+        </div>
+
+        {err && (
+          <div style={{ marginTop: 14, ...cardStyle(), border: "1px solid rgba(239,68,68,0.35)" }}>
+            <b>Error:</b> {err}
+          </div>
+        )}
+
+        {result && (
+          <div style={{ marginTop: 14, ...cardStyle() }}>
+            <div style={{ opacity: 0.85, marginBottom: 10 }}>
+              <b>Result:</b> {result.type}
+            </div>
+            <pre style={{ ...mono(), whiteSpace: "pre-wrap", margin: 0 }}>{JSON.stringify(result, null, 2)}</pre>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

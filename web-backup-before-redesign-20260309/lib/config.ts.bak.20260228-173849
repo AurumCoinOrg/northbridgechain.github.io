@@ -1,0 +1,9 @@
+export const RPC_URL = "http://89.167.28.12:8545";
+export const CHAIN_ID = 9000;            // decimal
+export const CHAIN_ID_HEX = "0x2328";    // 9000 hex
+export const CHAIN_NAME = "Northbridge Chain";
+
+export const NBCX = "0x6f6b16c998c74c661cAE800DDD60430B42c01d6D";
+export const STAKING = "0x43c665430F80D6Eb1bF228401670C795E8bFE795";
+export const LOCK = "0x2B1FcA8a64e97D64F4b80198D1e85f107f8A75F3";
+export const MULTISIG = "0xac2d3568271AE9dAf802C46ba60daE9fEE653c20";

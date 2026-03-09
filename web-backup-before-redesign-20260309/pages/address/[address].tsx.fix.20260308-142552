@@ -1,0 +1,438 @@
+import { useRouter } from "next/router";
+import { useEffect, useMemo, useState } from "react";
+import Head from "next/head";
+import CopyButton from "../../components/CopyButton";
+import { PUBLIC_RPC } from "../../lib/publicRpc";
+
+const RPC = PUBLIC_RPC;
+const NBCX = "0x09fbf5662DbF33B0ea3D56a3Fdc8cD1936c3c196";
+const TRANSFER_TOPIC =
+  "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+
+async function rpc(method: string, params: any[] = []) {
+  const r = await fetch(RPC, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+  });
+  const j = await r.json();
+  if (j.error) throw new Error(j.error.message || "RPC error");
+  return j.result;
+}
+
+function short(x: string) {
+  return x ? x.slice(0, 10) + "…" + x.slice(-8) : "";
+}
+
+function shortAddr(x: string) {
+  return x ? x.slice(0, 6) + "…" + x.slice(-4) : "";
+}
+
+function timeAgo(ts?: number | null) {
+  if (!ts) return "-";
+  const now = Math.floor(Date.now() / 1000);
+  const diff = Math.max(0, now - ts);
+
+  if (diff < 5) return "just now";
+  if (diff < 60) return diff + "s ago";
+
+  const m = Math.floor(diff / 60);
+  if (m < 60) return m + "m ago";
+
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + "h ago";
+
+  const d = Math.floor(h / 24);
+  return d + "d ago";
+}
+
+function hexToInt(h?: string | null) {
+  if (!h) return 0;
+  return parseInt(h, 16);
+}
+
+function hexToBigInt(h?: string | null) {
+  try {
+    return h ? BigInt(h) : 0n;
+  } catch {
+    return 0n;
+  }
+}
+
+function formatUnits(value: bigint, decimals = 18) {
+  const base = 10n ** BigInt(decimals);
+  const whole = value / base;
+  const frac = (value % base)
+    .toString()
+    .padStart(decimals, "0")
+    .slice(0, 4)
+    .replace(/0+$/, "");
+  return frac ? whole.toString() + "." + frac : whole.toString();
+}
+
+function topicToAddress(topic?: string | null) {
+  if (!topic || topic.length < 42) return "";
+  return "0x" + topic.slice(-40);
+}
+
+export default function AddressPage() {
+  const router = useRouter();
+  const { address } = router.query;
+
+  const [balance, setBalance] = useState<string>("");
+  const [transfers, setTransfers] = useState<any[]>([]);
+  const [isContract, setIsContract] = useState(false);
+  const [err, setErr] = useState("");
+
+  const normalizedAddress = useMemo(() => String(address || "").toLowerCase(), [address]);
+
+  useEffect(() => {
+    if (!router.isReady || !address) return;
+
+    async function load() {
+      try {
+        setErr("");
+
+        const addr = String(address);
+        if (!/^0x[0-9a-fA-F]{40}$/.test(addr)) {
+          throw new Error("Invalid address");
+        }
+
+        const paddedAddr = addr.toLowerCase().replace("0x", "").padStart(64, "0");
+        const balanceCallData = "0x70a08231" + paddedAddr;
+
+        const latestHex = await rpc("eth_blockNumber", []);
+        const latest = hexToInt(latestHex);
+        const fromBlock = "0x" + Math.max(0, latest - 10000).toString(16);
+
+        const [balanceHex, sentLogs, recvLogs, code] = await Promise.all([
+          rpc("eth_call", [{ to: NBCX, data: balanceCallData }, "latest"]).catch(() => "0x0"),
+          rpc("eth_getLogs", [{
+            address: NBCX,
+            fromBlock,
+            toBlock: "latest",
+            topics: [
+              TRANSFER_TOPIC,
+              "0x" + "0".repeat(24) + addr.toLowerCase().replace("0x", "")
+            ]
+          }]).catch(() => []),
+          rpc("eth_getLogs", [{
+            address: NBCX,
+            fromBlock,
+            toBlock: "latest",
+            topics: [
+              TRANSFER_TOPIC,
+              null,
+              "0x" + "0".repeat(24) + addr.toLowerCase().replace("0x", "")
+            ]
+          }]).catch(() => []),
+          rpc("eth_getCode", [addr, "latest"]).catch(() => "0x"),
+        ]);
+
+        setBalance(formatUnits(hexToBigInt(balanceHex), 18));
+        setIsContract(!!code && code !== "0x");
+
+        const allLogs = [...(Array.isArray(sentLogs) ? sentLogs : []), ...(Array.isArray(recvLogs) ? recvLogs : [])];
+
+        const dedup = new Map<string, any>();
+        for (const l of allLogs) {
+          const key = String(l.transactionHash || "") + ":" + String(l.logIndex || "");
+          dedup.set(key, l);
+        }
+
+        const rows = Array.from(dedup.values())
+          .map((l: any) => {
+            const from = topicToAddress(l?.topics?.[1]);
+            const to = topicToAddress(l?.topics?.[2]);
+            const lowerFrom = from.toLowerCase();
+            const lowerTo = to.toLowerCase();
+
+            const direction =
+              lowerTo === normalizedAddress ? "Incoming" :
+              lowerFrom === normalizedAddress ? "Outgoing" :
+              "Other";
+
+            return {
+              key: String(l.transactionHash || "") + ":" + String(l.logIndex || ""),
+              tx: String(l.transactionHash || ""),
+              from,
+              to,
+              amount: formatUnits(hexToBigInt(l.data), 18),
+              blockNumber: hexToInt(l.blockNumber),
+              timestamp: null,
+              direction,
+            };
+          })
+          .sort((a, b) => b.blockNumber - a.blockNumber)
+          .slice(0, 50);
+
+        setTransfers(rows);
+      } catch (e: any) {
+        setErr(e?.message || "Failed to load address");
+        setBalance("");
+        setTransfers([]);
+      }
+    }
+
+    load();
+  }, [router.isReady, address, normalizedAddress]);
+
+  const pageStyle: React.CSSProperties = {
+    maxWidth: 1100,
+    margin: "40px auto",
+    padding: 20,
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: 13,
+    opacity: 0.72,
+    marginBottom: 8,
+    letterSpacing: 0.2,
+  };
+
+  const cardStyle: React.CSSProperties = {
+    marginTop: 18,
+    padding: 18,
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.03)",
+  };
+
+  const monoBox: React.CSSProperties = {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 8,
+    flexWrap: "wrap",
+    padding: "10px 12px",
+    borderRadius: 12,
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(255,255,255,0.10)",
+    fontFamily:
+      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+    overflowWrap: "anywhere",
+    wordBreak: "break-word",
+  };
+
+  const directionStyle = (direction: string): React.CSSProperties => {
+    if (direction === "Incoming") {
+      return {
+        display: "inline-block",
+        padding: "4px 10px",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 700,
+        background: "rgba(34,197,94,0.16)",
+        border: "1px solid rgba(34,197,94,0.40)",
+        color: "rgba(220,255,230,0.98)",
+      };
+    }
+
+    if (direction === "Outgoing") {
+      return {
+        display: "inline-block",
+        padding: "4px 10px",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 700,
+        background: "rgba(239,68,68,0.16)",
+        border: "1px solid rgba(239,68,68,0.40)",
+        color: "rgba(255,220,220,0.98)",
+      };
+    }
+
+    return {
+      display: "inline-block",
+      padding: "4px 10px",
+      borderRadius: 999,
+      fontSize: 12,
+      fontWeight: 700,
+      background: "rgba(245,158,11,0.16)",
+      border: "1px solid rgba(245,158,11,0.40)",
+      color: "rgba(255,242,210,0.98)",
+    };
+  };
+
+  return (
+    <>
+      <Head>
+        <title>Address {String(address || "")}</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </Head>
+
+      <main style={pageStyle}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <h1 style={{ margin: 0 }}>Address</h1>
+          <span
+            style={{
+              display: "inline-block",
+              padding: "6px 12px",
+              borderRadius: 999,
+              fontSize: 12,
+              fontWeight: 800,
+              letterSpacing: 0.3,
+              background: isContract ? "rgba(168,85,247,0.16)" : "rgba(34,197,94,0.16)",
+              border: isContract ? "1px solid rgba(168,85,247,0.40)" : "1px solid rgba(34,197,94,0.40)",
+              color: isContract ? "rgba(243,232,255,0.98)" : "rgba(220,255,230,0.98)",
+            }}
+          >
+            {isContract ? "Contract" : "Wallet"}
+          </span>
+        </div>
+
+        <div style={{ marginTop: 16, display: "flex", gap: 14, flexWrap: "wrap" }}>
+          <a href="/explorer" style={{ textDecoration: "none", color: "inherit" }}>
+            ← Explorer
+          </a>
+        </div>
+
+        {err ? (
+          <div style={{ marginTop: 16, color: "rgba(255,120,120,0.95)" }}>{err}</div>
+        ) : null}
+
+        <div style={cardStyle}>
+          <div style={labelStyle}>Wallet Address</div>
+          <div style={monoBox}>
+            <span>{String(address || "")}</span>
+            {address ? <CopyButton value={String(address)} /> : null}
+          </div>
+
+          {isContract ? (
+            <div style={{ marginTop: 14 }}>
+              <a href={`/contract/${String(address || "")}`} style={{ textDecoration: "none", color: "inherit" }}>
+                Open Contract →
+              </a>
+            </div>
+          ) : null}
+        </div>
+
+        <div style={cardStyle}>
+          <div style={labelStyle}>Token Balance</div>
+          <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.1 }}>
+            {balance || "0"} NBCX
+          </div>
+        </div>
+
+        <div
+          style={{
+            marginTop: 40,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          <h2 style={{ margin: 0 }}>NBCX Transfers</h2>
+          <div style={{ fontSize: 13, opacity: 0.72 }}>
+            {transfers.length.toLocaleString()} records
+          </div>
+        </div>
+
+        <div
+          style={{
+            width: "100%",
+            overflowX: "auto",
+            WebkitOverflowScrolling: "touch",
+            marginTop: 16,
+            borderRadius: 16,
+            border: "1px solid rgba(255,255,255,0.10)",
+            background: "rgba(255,255,255,0.03)",
+          }}
+        >
+          <table style={{ width: "100%", minWidth: 980, borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left", padding: "12px 10px" }}>Direction</th>
+                <th style={{ textAlign: "left", padding: "12px 10px" }}>Tx</th>
+                <th style={{ textAlign: "left", padding: "12px 10px" }}>Block</th>
+                <th style={{ textAlign: "left", padding: "12px 10px" }}>From</th>
+                <th style={{ textAlign: "left", padding: "12px 10px" }}>To</th>
+                <th style={{ textAlign: "left", padding: "12px 10px" }}>Amount</th>
+                <th style={{ textAlign: "left", padding: "12px 10px" }}>Time</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {transfers.length ? (
+                transfers.map((t) => (
+                  <tr key={t.key} style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+                    <td style={{ padding: "12px 10px" }}>
+                      <span style={directionStyle(t.direction)}>{t.direction}</span>
+                    </td>
+
+                    <td
+                      style={{
+                        padding: "12px 10px",
+                        fontFamily:
+                          'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                      }}
+                    >
+                      <div style={{ display: "flex", gap: 8, alignItems: "flex-start", flexWrap: "wrap" }}>
+                        <a href={"/tx/" + t.tx} title={t.tx}>
+                          {short(t.tx)}
+                        </a>
+                        <CopyButton value={t.tx} />
+                      </div>
+                    </td>
+
+                    <td style={{ padding: "12px 10px" }}>
+                      {t.blockNumber ? <a href={"/block/" + t.blockNumber}>{t.blockNumber.toLocaleString()}</a> : "-"}
+                    </td>
+
+                    <td
+                      style={{
+                        padding: "12px 10px",
+                        fontFamily:
+                          'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                      }}
+                    >
+                      <div style={{ display: "flex", gap: 8, alignItems: "flex-start", flexWrap: "wrap" }}>
+                        <a href={"/address/" + t.from} title={t.from}>
+                          {shortAddr(t.from)}
+                        </a>
+                        <CopyButton value={t.from} />
+                      </div>
+                    </td>
+
+                    <td
+                      style={{
+                        padding: "12px 10px",
+                        fontFamily:
+                          'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                      }}
+                    >
+                      <div style={{ display: "flex", gap: 8, alignItems: "flex-start", flexWrap: "wrap" }}>
+                        <a href={"/address/" + t.to} title={t.to}>
+                          {shortAddr(t.to)}
+                        </a>
+                        <CopyButton value={t.to} />
+                      </div>
+                    </td>
+
+                    <td style={{ padding: "12px 10px", fontWeight: 700 }}>
+                      {t.amount}
+                    </td>
+
+                    <td style={{ padding: "12px 10px" }}>
+                      {t.timestamp ? timeAgo(t.timestamp) : "-"}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={7} style={{ padding: "18px 10px", opacity: 0.78 }}>
+                    No transfers found in the scanned history.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ marginTop: 12, fontSize: 13, opacity: 0.68 }}>
+          Scan window: latest 10,000 blocks
+        </div>
+      </main>
+    </>
+  );
+}

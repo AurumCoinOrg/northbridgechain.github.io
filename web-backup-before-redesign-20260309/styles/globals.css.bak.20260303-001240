@@ -1,0 +1,11 @@
+html, body { padding: 0; margin: 0; }
+body {
+  background: radial-gradient(1200px 800px at 20% 20%, rgba(90,120,255,0.25), transparent 60%),
+              radial-gradient(900px 700px at 80% 30%, rgba(0,255,200,0.12), transparent 55%),
+              linear-gradient(180deg, #070A12 0%, #060813 100%);
+  color: rgba(255,255,255,0.92);
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial;
+}
+a { color: rgba(130,180,255,0.95); text-decoration: none; }
+a:hover { text-decoration: underline; }
+* { box-sizing: border-box; }

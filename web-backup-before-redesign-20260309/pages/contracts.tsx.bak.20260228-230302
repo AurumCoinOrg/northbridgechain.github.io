@@ -1,0 +1,92 @@
+import Link from "next/link";
+
+const RPC_URL = (typeof window !== "undefined" ? window.location.origin : "https://northbridgechain.com") + "/api/rpc";
+const CHAIN_ID = 9000;
+
+// Governance / Owners
+const MULTISIG = "0xac2d3568271AE9dAf802C46ba60daE9fEE653c20";
+const OWNER1 = "0xf4A78142187754db8De724C962E48550585C5669";
+const OWNER2 = "0xfbBC8cb66CF2db89A8059f161ccDc3653B17ECba";
+const OWNER3 = "0x5d47Cc8675344E69FBAb0b34b89a83fAD3b0D4cb";
+
+// Core contracts (V2)
+const NBCX_V2 = "0x09fbf5662DbF33B0ea3D56a3Fdc8cD1936c3c196";
+const STAKING_V2 = "0x688192F914b058bF7a5533e5Fb1da8f9e45ACBa2";
+const LOCK_V2 = "0x2B1FcA8a64e97D64F4b80198D1e85f107f8A75F3";
+
+const TIMELOCK = "0x21e2962b917B7bA8B49540d0A0898981Bc88AE2D";
+const GOVERNANCE = "0x1f8d52151cbEa7098aA0A628079DEEBC3F15ab17";
+export default function Contracts() {
+  const Row = ({ k, v }: { k: string; v: string }) => (
+    <tr>
+      <td style={{ padding: "10px 12px", fontWeight: 700, width: 220, verticalAlign: "top" }}>{k}</td>
+      <td style={{ padding: "10px 12px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{v}</td>
+    </tr>
+  );
+
+  return (
+    <main style={{ maxWidth: 920, margin: "40px auto", padding: "0 16px", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" }}>
+      <header style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <h1 style={{ margin: 0 }}>Contracts</h1>
+        <div style={{ marginTop: 12, padding: 12, border: "1px solid rgba(255,255,255,0.10)", borderRadius: 14, background: "rgba(255,255,255,0.06)", boxShadow: "0 10px 30px rgba(0,0,0,0.25)" }}>
+          <div style={{ opacity: 0.85, fontSize: 12, letterSpacing: 1.1, textTransform: "uppercase" }}>Immutable constraints</div>
+          <div style={{ marginTop: 10, lineHeight: 1.6 }}>
+            <div><b>Token:</b> fixed supply (no mint function exposed)</div>
+            <div><b>Staking rewards:</b> paid from a pre-funded pool; emissions follow a deterministic halving schedule</div>
+            <div><b>Admin scope:</b> multisig + timelock for treasury operations only (no drain paths for staking pool)</div>
+          </div>
+        </div>
+
+        <nav style={{ display: "flex", gap: 14, fontWeight: 600 }}>
+          <Link href="/">Home</Link>
+          <Link href="/whitepaper-v0-1">Whitepaper</Link>
+          <Link href="/roadmap">Roadmap</Link>
+          <Link href="/architecture">Architecture</Link>
+          <Link href="/staking">Demo</Link>
+        </nav>
+      </header>
+
+      <p style={{ opacity: 0.8, marginTop: 10 }}>
+        Chain ID: <b>{CHAIN_ID}</b> • RPC: <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{RPC_URL}</span>
+      </p>
+
+      <h2>Governance</h2>
+      <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid rgba(0,0,0,0.12)", borderRadius: 12, overflow: "hidden" as any }}>
+        <tbody>
+          <Row k="Multisig (2-of-3)" v={MULTISIG} />
+          <Row k="Owner 1" v={OWNER1} />
+          <Row k="Owner 2" v={OWNER2} />
+          <Row k="Owner 3" v={OWNER3} />
+        </tbody>
+      </table>
+
+      <h2 style={{ marginTop: 22 }}>Core (V2)</h2>
+      <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid rgba(0,0,0,0.12)", borderRadius: 12, overflow: "hidden" as any }}>
+        <tbody>
+          <Row k="NBCX Token (V2)" v={NBCX_V2} />
+          <Row k="Staking (V2)" v={STAKING_V2} />
+          <Row k="Lock (V2)" v={LOCK_V2} />
+        </tbody>
+      </table>
+
+      <p style={{ marginTop: 18, opacity: 0.75 }}>
+        Keep governance keys offline. Only use a hot wallet for testing.
+      </p>
+    
+      <section style={{ marginTop: 24, padding: 16, border: "1px solid #222", borderRadius: 12 }}>
+        <h2 style={{ margin: 0 }}>Governance (Mainnet)</h2>
+        <p style={{ marginTop: 8, opacity: 0.9 }}>
+          NBCX is governed by a <b>2-of-3 multisig</b> behind a <b>72-hour timelock</b>. No single wallet controls the protocol.
+        </p>
+        <div style={{ marginTop: 12, fontFamily: "monospace", fontSize: 13, lineHeight: 1.6 }}>
+          <div><b>Multisig (GOVERNANCE):</b> {GOVERNANCE}</div>
+          <div><b>Timelock:</b> {TIMELOCK}</div>
+          <div><b>Timelock Delay:</b> 72 hours (259,200 seconds)</div>
+          <div><b>Token Supply:</b> Fixed cap 100,000,000 NBCX (no mint)</div>
+          <div><b>Staking Pool:</b> Prefunded 35,000,000 NBCX</div>
+        </div>
+      </section>
+
+</main>
+  );
+}
