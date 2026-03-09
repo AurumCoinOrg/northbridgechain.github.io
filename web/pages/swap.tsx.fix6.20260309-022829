@@ -2,24 +2,12 @@ import Head from "next/head";
 import { useEffect, useMemo, useState } from "react";
 import { ethers } from "ethers";
 
+
 const CHAIN_ID_HEX = "0x2328";
 const RPC_URL =
   (typeof window !== "undefined" ? window.location.origin : "https://northbridgechain.com") + "/api/rpc";
 
 const ROUTER = "0x55d7E0a93faC96183B71C7e45621cD63bbD4bE7D";
-
-const DEFAULT_PAIR = {
-  name: "NBCX / WNBCX",
-  pair: "0xcd55F87AF066f654BA12384DEBf6CE477ee28518",
-  tokenA: {
-    symbol: "NBCX",
-    address: "0x09fbf5662DbF33B0ea3D56a3Fdc8cD1936c3c196"
-  },
-  tokenB: {
-    symbol: "WNBCX",
-    address: "0xb4E91c043F1166aB33653ADbE316C7a6423Cb723"
-  }
-};
 
 const ERC20_ABI = [
   "function balanceOf(address owner) view returns (uint256)",
@@ -27,16 +15,16 @@ const ERC20_ABI = [
   "function approve(address spender,uint256 amount) returns (bool)"
 ];
 
+const ROUTER_ABI = [
+  "function getAmountsOut(uint amountIn, address[] memory path) view returns (uint[] memory amounts)",
+  "function swapExactTokensForTokens(uint amountIn,uint amountOutMin,address[] calldata path,address to,uint deadline) returns (uint[] memory amounts)"
+];
+
 const WRAPPED_ABI = [
   "function balanceOf(address owner) view returns (uint256)",
   "function allowance(address owner,address spender) view returns (uint256)",
   "function approve(address spender,uint256 amount) returns (bool)",
   "function deposit() payable"
-];
-
-const ROUTER_ABI = [
-  "function getAmountsOut(uint amountIn, address[] memory path) view returns (uint[] memory amounts)",
-  "function swapExactTokensForTokens(uint amountIn,uint amountOutMin,address[] calldata path,address to,uint deadline) returns (uint[] memory amounts)"
 ];
 
 const PAIR_ABI = [
@@ -59,12 +47,25 @@ function fmt(x: bigint, decimals = 18, maxFrac = 6) {
 }
 
 function short(x: string) {
-  return x ? x.slice(0, 10) + "…" + x.slice(-8) : "";
+  return x.slice(0, 10) + "…" + x.slice(-8);
 }
 
 function errMsg(e: any) {
   return e?.shortMessage || e?.reason || e?.message || "Transaction failed";
 }
+
+const DEFAULT_PAIR = {
+  name: "NBCX / WNBCX",
+  pair: "0xcd55F87AF066f654BA12384DEBf6CE477ee28518",
+  tokenA: {
+    symbol: "NBCX",
+    address: "0x09fbf5662DbF33B0ea3D56a3Fdc8cD1936c3c196"
+  },
+  tokenB: {
+    symbol: "WNBCX",
+    address: "0xb4E91c043F1166aB33653ADbE316C7a6423Cb723"
+  }
+};
 
 function isWrappedSymbol(symbol: string) {
   const s = String(symbol || "").toUpperCase();
@@ -72,10 +73,9 @@ function isWrappedSymbol(symbol: string) {
 }
 
 export default function SwapPage() {
+  const [pairAddress,setPairAddress]=useState(DEFAULT_PAIR.pair)
+  const [pairMeta,setPairMeta]=useState<any>(DEFAULT_PAIR)
   const [pairList, setPairList] = useState<any[]>([DEFAULT_PAIR]);
-  const [pairAddress, setPairAddress] = useState(DEFAULT_PAIR.pair);
-  const [pairMeta, setPairMeta] = useState<any>(DEFAULT_PAIR);
-
   const [account, setAccount] = useState("");
   const [connected, setConnected] = useState(false);
   const [inToken, setInToken] = useState(DEFAULT_PAIR.tokenA.address);
@@ -93,46 +93,46 @@ export default function SwapPage() {
   const readProvider = useMemo(() => new ethers.JsonRpcProvider(RPC_URL), []);
 
   useEffect(() => {
-    async function loadPairs() {
-      try {
-        const r = await fetch("/api/pairs");
-        if (!r.ok) return;
-        const raw = await r.json();
-        if (!Array.isArray(raw) || !raw.length) return;
 
-        const formatted = raw.map((p: any) => ({
-          name: "Pool",
-          pair: String(p.pair || ""),
-          tokenA: { symbol: "TOKEN0", address: String(p.token0 || "") },
-          tokenB: { symbol: "TOKEN1", address: String(p.token1 || "") }
-        })).filter((p: any) => p.pair && p.tokenA.address && p.tokenB.address);
+useEffect(()=>{
 
-        if (!formatted.length) return;
+async function load(){
 
-        setPairList(formatted);
-        setPairAddress(formatted[0].pair);
-        setPairMeta(formatted[0]);
-        setInToken(formatted[0].tokenA.address);
-        setOutToken(formatted[0].tokenB.address);
-      } catch {}
-    }
+const r = await fetch("/api/pairs")
+const pairs = await r.json()
 
-    loadPairs();
-  }, []);
+setPairList(pairs)
 
-  useEffect(() => {
-    const meta = pairList.find((x) => x.pair.toLowerCase() === pairAddress.toLowerCase());
+if(pairs.length){
+
+setPairAddress(pairs[0].pair)
+
+setPairMeta({
+pair:pairs[0].pair,
+tokenA:{address:pairs[0].token0,symbol:"TOKEN0"},
+tokenB:{address:pairs[0].token1,symbol:"TOKEN1"}
+})
+
+}
+
+}
+
+load()
+
+},[])
+
+
+    const meta = pairMeta;
     if (!meta) return;
-    setPairMeta(meta);
     setInToken(meta.tokenA.address);
     setOutToken(meta.tokenB.address);
     setQuoteOut("");
-  }, [pairAddress, pairList]);
+  }, [pairAddress]);
 
-  async function refreshWallet(addr?: string, meta?: any) {
+  async function refreshWallet(addr?: string, meta?: typeof pairMeta) {
     const active = addr || account;
     const current = meta || pairMeta;
-    if (!active || !current) return;
+    if (!active) return;
 
     try {
       const nextBalances: Record<string, string> = {};
@@ -154,9 +154,8 @@ export default function SwapPage() {
     } catch {}
   }
 
-  async function refreshPool(meta?: any) {
+  async function refreshPool(meta?: typeof pairMeta) {
     const current = meta || pairMeta;
-    if (!current) return;
 
     try {
       const pair = new ethers.Contract(current.pair, PAIR_ABI, readProvider);
@@ -200,10 +199,10 @@ export default function SwapPage() {
         }
       })
       .catch(() => {});
-  }, [pairMeta]);
+  }, []);
 
   useEffect(() => {
-    if (connected && account && pairMeta) {
+    if (connected && account) {
       refreshWallet(account, pairMeta);
     }
   }, [pairMeta, connected, account]);
@@ -216,7 +215,6 @@ export default function SwapPage() {
 
         const raw = amountIn.trim();
         if (!raw || Number(raw) <= 0) return;
-        if (!inToken || !outToken) return;
         if (inToken.toLowerCase() === outToken.toLowerCase()) return;
 
         const router = new ethers.Contract(ROUTER, ROUTER_ABI, readProvider);
@@ -267,7 +265,7 @@ export default function SwapPage() {
   }
 
   async function approveToken() {
-    if (!window.ethereum || !account || !pairMeta) return;
+    if (!window.ethereum || !account) return;
 
     try {
       setBusy(true);
@@ -324,7 +322,6 @@ export default function SwapPage() {
 
       const raw = amountIn.trim();
       if (!raw || Number(raw) <= 0) throw new Error("Enter amount");
-      if (!inToken || !outToken) throw new Error("Missing token selection");
       if (inToken.toLowerCase() === outToken.toLowerCase()) throw new Error("Choose different tokens");
 
       const browserProvider = new ethers.BrowserProvider(window.ethereum);
@@ -361,9 +358,9 @@ export default function SwapPage() {
     setQuoteOut("");
   }
 
-  const tokenOptions = pairMeta ? [pairMeta.tokenA, pairMeta.tokenB] : [];
-  const inMeta = tokenOptions.find((t: any) => t.address.toLowerCase() === inToken.toLowerCase()) || DEFAULT_PAIR.tokenA;
-  const outMeta = tokenOptions.find((t: any) => t.address.toLowerCase() === outToken.toLowerCase()) || DEFAULT_PAIR.tokenB;
+  const tokenOptions = [pairMeta.tokenA, pairMeta.tokenB];
+  const inMeta = tokenOptions.find((t) => t.address.toLowerCase() === inToken.toLowerCase()) || pairMeta.tokenA;
+  const outMeta = tokenOptions.find((t) => t.address.toLowerCase() === outToken.toLowerCase()) || pairMeta.tokenB;
 
   return (
     <>
@@ -390,7 +387,7 @@ export default function SwapPage() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 14, marginBottom: 18 }}>
           <div style={card()}>
             <div style={label()}>Pool</div>
-            <div style={value()}>{pairMeta?.pair || DEFAULT_PAIR.pair}</div>
+            <div style={value()}>{pairMeta.pair}</div>
           </div>
           <div style={card()}>
             <div style={label()}>Reserve</div>
@@ -425,7 +422,7 @@ export default function SwapPage() {
                 style={inputStyle()}
               />
               <select value={inToken} onChange={(e) => setInToken(e.target.value)} style={selectStyle()}>
-                {tokenOptions.map((t: any) => (
+                {tokenOptions.map((t) => (
                   <option key={t.address} value={t.address}>{t.symbol}</option>
                 ))}
               </select>
@@ -451,7 +448,7 @@ export default function SwapPage() {
                 style={{ ...inputStyle(), opacity: 0.92 }}
               />
               <select value={outToken} onChange={(e) => setOutToken(e.target.value)} style={selectStyle()}>
-                {tokenOptions.map((t: any) => (
+                {tokenOptions.map((t) => (
                   <option key={t.address} value={t.address}>{t.symbol}</option>
                 ))}
               </select>
@@ -462,7 +459,7 @@ export default function SwapPage() {
           </div>
 
           <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12 }}>
-            {tokenOptions.map((t: any) => (
+            {tokenOptions.map((t) => (
               <div key={t.address} style={miniCard()}>
                 <div style={label()}>{t.symbol}</div>
                 <div style={value()}>{balances[t.address.toLowerCase()] || "0"}</div>

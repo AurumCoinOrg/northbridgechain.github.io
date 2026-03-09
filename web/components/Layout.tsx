@@ -17,6 +17,7 @@ export default function Layout({ children }: Props) {
       { href: "/swap", label: "Swap" },
       { href: "/create-pair", label: "Create Pair" },
       { href: "/dex", label: "DEX" },
+      { href: "/markets", label: "Markets" },
       { href: "/dex-activity", label: "DEX Activity" },
       { href: "/liquidity", label: "Liquidity" },
       { href: "/remove-liquidity", label: "Remove LP" },
