@@ -277,7 +277,30 @@ export default function Explorer() {
               Token overview page
             </div>
           </a>
-        </div>
+                  <a className="quickCard" href="/dex">
+            <div className="quickTitle">DEX</div>
+            <div className="quickValue">Overview</div>
+            <div className="quickSub">Live market summary</div>
+          </a>
+
+          <a className="quickCard" href="/swap">
+            <div className="quickTitle">Swap</div>
+            <div className="quickValue">NBCX ↔ WNBCX</div>
+            <div className="quickSub">Trade on Northbridge DEX</div>
+          </a>
+
+          <a className="quickCard" href="/liquidity">
+            <div className="quickTitle">Liquidity</div>
+            <div className="quickValue">Add / Manage</div>
+            <div className="quickSub">Provide pool liquidity</div>
+          </a>
+
+          <a className="quickCard" href="/pools">
+            <div className="quickTitle">Pools</div>
+            <div className="quickValue">Live Reserves</div>
+            <div className="quickSub">View current pool state</div>
+          </a>
+</div>
 
         <div className="stats">
           <div>Latest Block: {latest.toLocaleString()}</div>
