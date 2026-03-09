@@ -1,7 +1,7 @@
 import Head from "next/head";
 import { useEffect, useRef, useState } from "react";
 import { ethers } from "ethers";
-import { createChart, LineSeries } from "lightweight-charts";
+import { createChart } from "lightweight-charts";
 import { DEX_PAIRS } from "../lib/dexPairs";
 
 const RPC_URL = "https://northbridgechain.com/api/rpc";
@@ -78,6 +78,7 @@ width:900,
 height:500
 })
 
+const { LineSeries } = await import("lightweight-charts")
 
 const lineSeries = chart.addSeries(LineSeries,{
 color:"#3b82f6",
