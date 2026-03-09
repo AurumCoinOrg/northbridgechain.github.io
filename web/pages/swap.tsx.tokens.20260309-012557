@@ -13,11 +13,6 @@ const WNBCX = "0xb4E91c043F1166aB33653ADbE316C7a6423Cb723";
 const ROUTER = "0x55d7E0a93faC96183B71C7e45621cD63bbD4bE7D";
 const PAIR = "0xcd55F87AF066f654BA12384DEBf6CE477ee28518";
 
-const TOKEN_OPTIONS = [
-  { symbol: "WNBCX", address: WNBCX },
-  { symbol: "NBCX", address: NBCX }
-];
-
 const ERC20_ABI = [
   "function balanceOf(address owner) view returns (uint256)",
   "function allowance(address owner,address spender) view returns (uint256)",
@@ -62,10 +57,6 @@ function errMsg(e: any) {
   return e?.shortMessage || e?.reason || e?.message || "Transaction failed";
 }
 
-function short(x: string) {
-  return x.slice(0, 10) + "…" + x.slice(-8);
-}
-
 export default function SwapPage() {
   const [account, setAccount] = useState("");
   const [connected, setConnected] = useState(false);
@@ -76,8 +67,10 @@ export default function SwapPage() {
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
   const [needApprove, setNeedApprove] = useState(false);
-  const [balances, setBalances] = useState<Record<string, string>>({});
-  const [allowances, setAllowances] = useState<Record<string, string>>({});
+  const [balNBCX, setBalNBCX] = useState("0");
+  const [balWNBCX, setBalWNBCX] = useState("0");
+  const [allowWNBCX, setAllowWNBCX] = useState("0");
+  const [allowNBCX, setAllowNBCX] = useState("0");
   const [reserveA, setReserveA] = useState("-");
   const [reserveB, setReserveB] = useState("-");
 
@@ -88,21 +81,20 @@ export default function SwapPage() {
     if (!active) return;
 
     try {
-      const nextBalances: Record<string, string> = {};
-      const nextAllowances: Record<string, string> = {};
+      const nbcx = new ethers.Contract(NBCX, ERC20_ABI, readProvider);
+      const wnbcx = new ethers.Contract(WNBCX, WNBCX_ABI, readProvider);
 
-      for (const token of TOKEN_OPTIONS) {
-        const c = new ethers.Contract(token.address, ERC20_ABI, readProvider);
-        const [bal, allow] = await Promise.all([
-          c.balanceOf(active),
-          c.allowance(active, ROUTER)
-        ]);
-        nextBalances[token.address.toLowerCase()] = fmt(bal, 18, 6);
-        nextAllowances[token.address.toLowerCase()] = fmt(allow, 18, 6);
-      }
+      const [bn, bw, an, aw] = await Promise.all([
+        nbcx.balanceOf(active),
+        wnbcx.balanceOf(active),
+        nbcx.allowance(active, ROUTER),
+        wnbcx.allowance(active, ROUTER)
+      ]);
 
-      setBalances(nextBalances);
-      setAllowances(nextAllowances);
+      setBalNBCX(fmt(bn, 18, 6));
+      setBalWNBCX(fmt(bw, 18, 6));
+      setAllowNBCX(fmt(an, 18, 6));
+      setAllowWNBCX(fmt(aw, 18, 6));
     } catch {}
   }
 
@@ -160,7 +152,6 @@ export default function SwapPage() {
 
         const raw = amountIn.trim();
         if (!raw || Number(raw) <= 0) return;
-        if (inToken.toLowerCase() === outToken.toLowerCase()) return;
 
         const router = new ethers.Contract(ROUTER, ROUTER_ABI, readProvider);
         const amountParsed = ethers.parseUnits(raw, 18);
@@ -170,8 +161,10 @@ export default function SwapPage() {
         setQuoteOut(fmt(out[1], 18, 12));
 
         if (connected && account) {
-          const allowStr = allowances[inToken.toLowerCase()] || "0";
-          const allow = ethers.parseUnits(allowStr, 18);
+          const allow =
+            inToken.toLowerCase() === WNBCX.toLowerCase()
+              ? ethers.parseUnits(allowWNBCX || "0", 18)
+              : ethers.parseUnits(allowNBCX || "0", 18);
           setNeedApprove(allow < amountParsed);
         }
       } catch {
@@ -180,7 +173,7 @@ export default function SwapPage() {
     }
 
     loadQuote();
-  }, [amountIn, inToken, outToken, connected, account, allowances, readProvider]);
+  }, [amountIn, inToken, outToken, connected, account, allowWNBCX, allowNBCX, readProvider]);
 
   async function connectWallet() {
     if (!window.ethereum) {
@@ -267,7 +260,6 @@ export default function SwapPage() {
 
       const raw = amountIn.trim();
       if (!raw || Number(raw) <= 0) throw new Error("Enter amount");
-      if (inToken.toLowerCase() === outToken.toLowerCase()) throw new Error("Choose different tokens");
 
       const browserProvider = new ethers.BrowserProvider(window.ethereum);
       const signer = await browserProvider.getSigner();
@@ -303,8 +295,8 @@ export default function SwapPage() {
     setQuoteOut("");
   }
 
-  const inMeta = TOKEN_OPTIONS.find((t) => t.address.toLowerCase() === inToken.toLowerCase())!;
-  const outMeta = TOKEN_OPTIONS.find((t) => t.address.toLowerCase() === outToken.toLowerCase())!;
+  const inLabel = inToken.toLowerCase() === WNBCX.toLowerCase() ? "WNBCX" : "NBCX";
+  const outLabel = outToken.toLowerCase() === WNBCX.toLowerCase() ? "WNBCX" : "NBCX";
 
   return (
     <>
@@ -316,7 +308,7 @@ export default function SwapPage() {
       <main style={{ maxWidth: 920, margin: "40px auto", padding: 20 }}>
         <h1 style={{ marginBottom: 8 }}>Swap</h1>
         <div style={{ opacity: 0.72, marginBottom: 20 }}>
-          Northbridge DEX • Token-aware swap UI
+          Northbridge DEX • NBCX / WNBCX
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 14, marginBottom: 18 }}>
@@ -357,13 +349,9 @@ export default function SwapPage() {
                 style={inputStyle()}
               />
               <select value={inToken} onChange={(e) => setInToken(e.target.value)} style={selectStyle()}>
-                {TOKEN_OPTIONS.map((t) => (
-                  <option key={t.address} value={t.address}>{t.symbol}</option>
-                ))}
+                <option value={WNBCX}>WNBCX</option>
+                <option value={NBCX}>NBCX</option>
               </select>
-            </div>
-            <div style={{ marginTop: 8, fontSize: 13, opacity: 0.72 }}>
-              Balance: {balances[inToken.toLowerCase()] || "0"} {inMeta.symbol}
             </div>
           </div>
 
@@ -383,24 +371,29 @@ export default function SwapPage() {
                 style={{ ...inputStyle(), opacity: 0.92 }}
               />
               <select value={outToken} onChange={(e) => setOutToken(e.target.value)} style={selectStyle()}>
-                {TOKEN_OPTIONS.map((t) => (
-                  <option key={t.address} value={t.address}>{t.symbol}</option>
-                ))}
+                <option value={NBCX}>NBCX</option>
+                <option value={WNBCX}>WNBCX</option>
               </select>
-            </div>
-            <div style={{ marginTop: 8, fontSize: 13, opacity: 0.72 }}>
-              Balance: {balances[outToken.toLowerCase()] || "0"} {outMeta.symbol}
             </div>
           </div>
 
           <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12 }}>
-            {TOKEN_OPTIONS.map((t) => (
-              <div key={t.address} style={miniCard()}>
-                <div style={label()}>{t.symbol}</div>
-                <div style={value()}>{balances[t.address.toLowerCase()] || "0"}</div>
-                <div style={{ marginTop: 8, fontSize: 12, opacity: 0.72 }}>{short(t.address)}</div>
-              </div>
-            ))}
+            <div style={miniCard()}>
+              <div style={label()}>NBCX Balance</div>
+              <div style={value()}>{balNBCX}</div>
+            </div>
+            <div style={miniCard()}>
+              <div style={label()}>WNBCX Balance</div>
+              <div style={value()}>{balWNBCX}</div>
+            </div>
+            <div style={miniCard()}>
+              <div style={label()}>NBCX Allowance</div>
+              <div style={value()}>{allowNBCX}</div>
+            </div>
+            <div style={miniCard()}>
+              <div style={label()}>WNBCX Allowance</div>
+              <div style={value()}>{allowWNBCX}</div>
+            </div>
           </div>
 
           <div style={{ marginTop: 18, display: "flex", gap: 12, flexWrap: "wrap" }}>
@@ -412,12 +405,12 @@ export default function SwapPage() {
 
             {connected && needApprove ? (
               <button onClick={approveToken} style={btnPrimary()} disabled={busy}>
-                Approve {inMeta.symbol}
+                Approve {inLabel}
               </button>
             ) : null}
 
             <button onClick={swapNow} style={btnPrimary()} disabled={busy || !connected || !amountIn || !quoteOut}>
-              Swap {inMeta.symbol} → {outMeta.symbol}
+              Swap {inLabel} → {outLabel}
             </button>
           </div>
 
