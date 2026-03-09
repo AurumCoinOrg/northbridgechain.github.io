@@ -54,32 +54,19 @@ function errMsg(e: any) {
   return e?.shortMessage || e?.reason || e?.message || "Transaction failed";
 }
 
-const DEFAULT_PAIR = {
-  name: "NBCX / WNBCX",
-  pair: "0xcd55F87AF066f654BA12384DEBf6CE477ee28518",
-  tokenA: {
-    symbol: "NBCX",
-    address: "0x09fbf5662DbF33B0ea3D56a3Fdc8cD1936c3c196"
-  },
-  tokenB: {
-    symbol: "WNBCX",
-    address: "0xb4E91c043F1166aB33653ADbE316C7a6423Cb723"
-  }
-};
-
 function isWrappedSymbol(symbol: string) {
   const s = String(symbol || "").toUpperCase();
   return s.includes("WNBCX") || s.startsWith("W");
 }
 
 export default function SwapPage() {
-  const [pairAddress,setPairAddress]=useState(DEFAULT_PAIR.pair)
-  const [pairMeta,setPairMeta]=useState<any>(DEFAULT_PAIR)
-  const [pairList, setPairList] = useState<any[]>([DEFAULT_PAIR]);
+  const [pairAddress,setPairAddress]=useState("")
+  const [pairMeta,setPairMeta]=useState<any>(null)
+  const [pairList, setPairList] = useState<any[]>([]);
   const [account, setAccount] = useState("");
   const [connected, setConnected] = useState(false);
-  const [inToken, setInToken] = useState(DEFAULT_PAIR.tokenA.address);
-  const [outToken, setOutToken] = useState(DEFAULT_PAIR.tokenB.address);
+  const [inToken, setInToken] = useState("");
+  const [outToken, setOutToken] = useState("");
   const [amountIn, setAmountIn] = useState("0.001");
   const [quoteOut, setQuoteOut] = useState("");
   const [status, setStatus] = useState("");

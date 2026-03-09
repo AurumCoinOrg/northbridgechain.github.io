@@ -54,32 +54,18 @@ function errMsg(e: any) {
   return e?.shortMessage || e?.reason || e?.message || "Transaction failed";
 }
 
-const DEFAULT_PAIR = {
-  name: "NBCX / WNBCX",
-  pair: "0xcd55F87AF066f654BA12384DEBf6CE477ee28518",
-  tokenA: {
-    symbol: "NBCX",
-    address: "0x09fbf5662DbF33B0ea3D56a3Fdc8cD1936c3c196"
-  },
-  tokenB: {
-    symbol: "WNBCX",
-    address: "0xb4E91c043F1166aB33653ADbE316C7a6423Cb723"
-  }
-};
-
 function isWrappedSymbol(symbol: string) {
   const s = String(symbol || "").toUpperCase();
   return s.includes("WNBCX") || s.startsWith("W");
 }
 
 export default function SwapPage() {
-  const [pairAddress,setPairAddress]=useState(DEFAULT_PAIR.pair)
-  const [pairMeta,setPairMeta]=useState<any>(DEFAULT_PAIR)
-  const [pairList, setPairList] = useState<any[]>([DEFAULT_PAIR]);
+  const [pairAddress,setPairAddress]=useState("")
+  const [pairMeta,setPairMeta]=useState<any>(null)
   const [account, setAccount] = useState("");
   const [connected, setConnected] = useState(false);
-  const [inToken, setInToken] = useState(DEFAULT_PAIR.tokenA.address);
-  const [outToken, setOutToken] = useState(DEFAULT_PAIR.tokenB.address);
+  const [inToken, setInToken] = useState(DEX_PAIRS[0].tokenA.address);
+  const [outToken, setOutToken] = useState(DEX_PAIRS[0].tokenB.address);
   const [amountIn, setAmountIn] = useState("0.001");
   const [quoteOut, setQuoteOut] = useState("");
   const [status, setStatus] = useState("");
@@ -101,8 +87,6 @@ async function load(){
 const r = await fetch("/api/pairs")
 const pairs = await r.json()
 
-setPairList(pairs)
-
 if(pairs.length){
 
 setPairAddress(pairs[0].pair)
@@ -122,8 +106,8 @@ load()
 },[])
 
 
-    const meta = pairMeta;
-    if (!meta) return;
+    const meta = DEX_PAIRS.find((x) => x.pair.toLowerCase() === pairAddress.toLowerCase()) || DEX_PAIRS[0];
+    setPairMeta(meta);
     setInToken(meta.tokenA.address);
     setOutToken(meta.tokenB.address);
     setQuoteOut("");
@@ -378,7 +362,7 @@ load()
         <div style={{ ...shell(), marginBottom: 18 }}>
           <div style={label()}>Selected Pair</div>
           <select value={pairAddress} onChange={(e) => setPairAddress(e.target.value)} style={selectStyle()}>
-            {pairList.map((x) => (
+            {DEX_PAIRS.map((x) => (
               <option key={x.pair} value={x.pair}>{x.name}</option>
             ))}
           </select>
