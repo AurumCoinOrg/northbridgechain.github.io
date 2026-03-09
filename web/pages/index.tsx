@@ -1,48 +1,165 @@
+import Head from "next/head"
+
 export default function Home() {
   return (
-    <section className="hero">
-      <div className="kicker">⛓️ Northbridge Chain • Testnet</div>
+    <>
+      <Head>
+        <title>Northbridge Chain Explorer</title>
+      </Head>
 
-      <h1 className="h1" style={{ marginTop: 12 }}>
-        A premium staking experience.
-      </h1>
+      <main style={wrap}>
 
-      <p className="sub">
-        Stake NBCX, claim rewards, and track the rollout.
-      </p>
+        <section style={hero}>
+          <div style={heroInner}>
+            <h1 style={title}>
+              Northbridge Blockchain Explorer
+            </h1>
 
-      {/* BUTTON BLOCK */}
-      <div className="row">
-        <a className="btn btnPrimary" href="/wallet">Open Wallet →</a>
-        <a className="btn" href="/staking">Staking Dashboard</a>
-        <a className="btn" href="/transparency">Transparency</a>
-        <a className="btn" href="/tokenomics">Tokenomics</a>
-        <a className="btn" href="/explorer">Explorer Lite</a>
-        <a className="btn" href="/contracts">View Contracts</a>
-        <a className="btn" href="/whitepaper-v0-1">Read Whitepaper</a>
-      </div>
+            <p style={subtitle}>
+              Search blocks, transactions, addresses, tokens and DEX markets.
+            </p>
 
-      <div className="grid">
-        <div className="card">
-          <h3>Staking</h3>
-          <p>Connect MetaMask, add the network, stake and claim rewards.</p>
-        </div>
+            <div style={searchWrap}>
+              <input
+                placeholder="Search by Address / Tx Hash / Block / Token"
+                style={searchInput}
+              />
+              <button style={searchButton}>
+                Search
+              </button>
+            </div>
+          </div>
+        </section>
 
-        <div className="card">
-          <h3>Contracts</h3>
-          <p>System components and ownership (multisig).</p>
-        </div>
 
-        <div className="card">
-          <h3>Architecture</h3>
-          <p>Token + staking + vault + distributor.</p>
-        </div>
+        <section style={stats}>
+          <Stat label="Network" value="Northbridge Testnet"/>
+          <Stat label="DEX Pools" value="1"/>
+          <Stat label="Tokens" value="1"/>
+          <Stat label="Transactions" value="4"/>
+        </section>
 
-        <div className="card">
-          <h3>Roadmap</h3>
-          <p>What’s shipping next.</p>
-        </div>
-      </div>
-    </section>
-  );
+
+        <section style={grid}>
+
+          <div style={panel}>
+            <h3>Latest Blocks</h3>
+            <p>Block explorer data will appear here.</p>
+          </div>
+
+          <div style={panel}>
+            <h3>Latest Transactions</h3>
+            <p>Recent network activity will appear here.</p>
+          </div>
+
+          <div style={panel}>
+            <h3>Top Tokens</h3>
+            <p>Token statistics will appear here.</p>
+          </div>
+
+          <div style={panel}>
+            <h3>DEX Markets</h3>
+            <p>Trading pairs and liquidity.</p>
+          </div>
+
+        </section>
+
+      </main>
+    </>
+  )
+}
+
+function Stat({label,value}:{label:string,value:string}){
+  return(
+    <div style={statCard}>
+      <div style={statLabel}>{label}</div>
+      <div style={statValue}>{value}</div>
+    </div>
+  )
+}
+
+const wrap:React.CSSProperties={
+  maxWidth:1200,
+  margin:"40px auto",
+  padding:20
+}
+
+const hero:React.CSSProperties={
+  marginBottom:40
+}
+
+const heroInner:React.CSSProperties={
+  maxWidth:900
+}
+
+const title:React.CSSProperties={
+  fontSize:44,
+  fontWeight:800,
+  marginBottom:12
+}
+
+const subtitle:React.CSSProperties={
+  opacity:.7,
+  marginBottom:24
+}
+
+const searchWrap:React.CSSProperties={
+  display:"flex",
+  gap:10
+}
+
+const searchInput:React.CSSProperties={
+  flex:1,
+  padding:"14px 16px",
+  borderRadius:12,
+  border:"1px solid rgba(255,255,255,.15)",
+  background:"rgba(255,255,255,.05)",
+  color:"white"
+}
+
+const searchButton:React.CSSProperties={
+  padding:"14px 22px",
+  borderRadius:12,
+  border:"none",
+  background:"#3b82f6",
+  color:"white",
+  fontWeight:700,
+  cursor:"pointer"
+}
+
+const stats:React.CSSProperties={
+  display:"grid",
+  gridTemplateColumns:"repeat(4,1fr)",
+  gap:16,
+  marginBottom:40
+}
+
+const statCard:React.CSSProperties={
+  padding:20,
+  borderRadius:16,
+  border:"1px solid rgba(255,255,255,.1)",
+  background:"rgba(255,255,255,.04)"
+}
+
+const statLabel:React.CSSProperties={
+  fontSize:12,
+  opacity:.6
+}
+
+const statValue:React.CSSProperties={
+  fontSize:24,
+  fontWeight:700
+}
+
+const grid:React.CSSProperties={
+  display:"grid",
+  gridTemplateColumns:"repeat(2,1fr)",
+  gap:20
+}
+
+const panel:React.CSSProperties={
+  padding:20,
+  borderRadius:16,
+  border:"1px solid rgba(255,255,255,.1)",
+  background:"rgba(255,255,255,.04)"
 }
