@@ -86,12 +86,6 @@ function topicToAddress(topic?: string | null) {
   return "0x" + topic.slice(-40);
 }
 
-const NBCX = "0x09fbf5662DbF33B0ea3D56a3Fdc8cD1936c3c196";
-const WNBCX = "0xb4E91c043F1166aB33653ADbE316C7a6423Cb723";
-const FACTORY = "0x5b1211A7880C0B8a49A2495c133e4592EA6f8937";
-const ROUTER = "0x55d7E0a93faC96183B71C7e45621cD63bbD4bE7D";
-const PAIR = "0xcd55F87AF066f654BA12384DEBf6CE477ee28518";
-
 export default function TokenPage() {
   const router = useRouter();
   const { address } = router.query;
@@ -230,39 +224,6 @@ export default function TokenPage() {
         <h1>{meta.name || meta.symbol || "Token"}</h1>
 
         <div style={{ marginTop: 16, display: "flex", gap: 14, flexWrap: "wrap" }}>
-      <div style={{...cardStyle, marginTop:20}}>
-        <div style={labelStyle}>DEX Market</div>
-
-        <div style={{marginTop:10,fontSize:14}}>
-          Pair
-          <div style={codeBox}>{PAIR}</div>
-        </div>
-
-        <div style={{marginTop:10,fontSize:14}}>
-          Router
-          <div style={codeBox}>{ROUTER}</div>
-        </div>
-
-        <div style={{marginTop:10,fontSize:14}}>
-          Factory
-          <div style={codeBox}>{FACTORY}</div>
-        </div>
-
-        <div style={{display:"flex",gap:10,marginTop:14,flexWrap:"wrap"}}>
-          <a href="/swap" style={{padding:"8px 12px",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,textDecoration:"none"}}>
-            Swap
-          </a>
-
-          <a href="/liquidity" style={{padding:"8px 12px",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,textDecoration:"none"}}>
-            Add Liquidity
-          </a>
-
-          <a href="/pools" style={{padding:"8px 12px",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,textDecoration:"none"}}>
-            Pools
-          </a>
-        </div>
-      </div>
-
           <a href="/explorer" style={{ textDecoration: "none", color: "inherit" }}>
             ← Explorer
           </a>
