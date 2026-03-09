@@ -15,6 +15,7 @@ export default function Layout({ children }: Props) {
       { href: "/staking", label: "Staking" },
       { href: "/wallet", label: "Wallet" },
       { href: "/swap", label: "Swap" },
+      { href: "/dex", label: "DEX" },
       { href: "/liquidity", label: "Liquidity" },
       { href: "/pools", label: "Pools" },
       { href: "/analytics", label: "Analytics" },
