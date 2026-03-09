@@ -13,12 +13,12 @@ const factoryABI=[
 const pairABI=[
 "function token0() view returns(address)",
 "function token1() view returns(address)",
-"function getReserves() view returns(uint112,uint112,uint32)",
-"event Swap(address indexed sender,uint amount0In,uint amount1In,uint amount0Out,uint amount1Out,address indexed to)"
+"function getReserves() view returns(uint112,uint112,uint32)"
 ]
 
 const erc20ABI=[
-"function symbol() view returns(string)"
+"function symbol() view returns(string)",
+"function decimals() view returns(uint8)"
 ]
 
 export default async function handler(req,res){
@@ -59,29 +59,6 @@ price=r1/r0
 tvl=r0+r1
 }
 
-const currentBlock=await provider.getBlockNumber()
-const fromBlock=currentBlock-6500
-
-const filter=pair.filters.Swap()
-
-let logs=[]
-
-try{
-logs=await pair.queryFilter(filter,fromBlock,currentBlock)
-}catch(e){}
-
-let volume=0
-let trades=logs.length
-
-for(const log of logs){
-
-const a0in=Number(ethers.formatUnits(log.args.amount0In,18))
-const a1in=Number(ethers.formatUnits(log.args.amount1In,18))
-
-volume+=a0in+a1in
-
-}
-
 markets.push({
 
 pair:pairAddress,
@@ -101,9 +78,7 @@ reserve:r1
 },
 
 price,
-tvl,
-volume,
-trades
+tvl
 
 })
 

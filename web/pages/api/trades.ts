@@ -1,0 +1,75 @@
+import { ethers } from "ethers"
+
+const RPC = process.env.NEXT_PUBLIC_RPC || "https://rpc.northbridgechain.com"
+
+const FACTORY = "0x5b1211A7880C0B8a49A2495c133e4592EA6f8937"
+
+const factoryABI=[
+"function allPairsLength() view returns(uint)",
+"function allPairs(uint) view returns(address)"
+]
+
+const pairABI=[
+"event Swap(address indexed sender,uint amount0In,uint amount1In,uint amount0Out,uint amount1Out,address indexed to)"
+]
+
+export default async function handler(req,res){
+
+const provider=new ethers.JsonRpcProvider(RPC)
+
+const factory=new ethers.Contract(FACTORY,factoryABI,provider)
+
+const length=Number(await factory.allPairsLength())
+
+let trades=[]
+
+const current=await provider.getBlockNumber()
+const from=current-2000
+
+for(let i=0;i<length;i++){
+
+const pairAddress=await factory.allPairs(i)
+
+const pair=new ethers.Contract(pairAddress,pairABI,provider)
+
+const logs=await pair.queryFilter(pair.filters.Swap(),from,current)
+
+for (const rawLog of logs) {
+
+const log: any = rawLog
+
+const a0in=Number(ethers.formatUnits(log.args.amount0In,18))
+const a1in=Number(ethers.formatUnits(log.args.amount1In,18))
+const a0out=Number(ethers.formatUnits(log.args.amount0Out,18))
+const a1out=Number(ethers.formatUnits(log.args.amount1Out,18))
+
+let side="BUY"
+let price=0
+let size=0
+
+if(a0in>0){
+side="SELL"
+price=a1out/a0in
+size=a0in
+}else{
+side="BUY"
+price=a1in/a0out
+size=a0out
+}
+
+trades.push({
+tx:log.transactionHash,
+side,
+price,
+size
+})
+
+}
+
+}
+
+trades.sort((a,b)=>b.price-a.price)
+
+res.status(200).json(trades.slice(0,40))
+
+}
